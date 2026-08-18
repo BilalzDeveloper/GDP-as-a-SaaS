@@ -1,8 +1,8 @@
 # SNA-Compliant GDP Compilation SaaS — Planning Proposal
 
-Status: **awaiting owner approval** (per the kickstart brief: no application code
-until this plan is agreed). Once approved, the agreed version of this plan gets
-promoted into `CLAUDE.md` so future sessions inherit it.
+Status: **approved 2026-08-18.** Milestone 1 is built — see
+[Milestone 1 — delivered](#milestone-1--delivered) at the end of this document.
+Milestones 2–8 stand as planned below.
 
 This document answers the four "Start here" questions:
 
@@ -178,24 +178,66 @@ worked examples for Denton proportional benchmarking (milestone 8); Eurostat
 *Handbook on Price and Volume Measures* examples for deflation and
 chain-linking edge cases (milestone 6).
 
-## Open questions before milestone 1
+## Open questions
 
-1. **Embargo semantics.** Assumption: org members can see pre-release vintages
-   (that's their job); the embargo governs *publication/export* and any future
-   external sharing. Confirm, or should viewers-role users also be blocked
-   pre-embargo?
-2. **Quarterly periods under a fiscal year**: aligned to the fiscal year
-   (FY-Q1 starts at `fiscal_year_start_month`) — assumed yes.
-3. **Custom classifications are private per tenant** — assumed yes (no
-   cross-tenant sharing/marketplace for now).
-4. **Provisioning**: milestone 1 ends with a live Vercel URL, which needs a
-   Vercel project and a Supabase project linked to accounts you control —
-   these need to be created (or access granted) at milestone 1 start.
+Still open, needed before the milestones that depend on them:
 
-## After go-ahead — milestone 1 scope
+1. **Embargo semantics** (needed by milestone 7). Assumption: org members can
+   see pre-release vintages (that's their job); the embargo governs
+   *publication/export* and any future external sharing. Confirm, or should
+   viewer-role users also be blocked pre-embargo?
+2. **Quarterly periods under a fiscal year** (milestone 8): aligned to the
+   fiscal year (FY-Q1 starts at `fiscal_year_start_month`) — assumed yes.
+3. **Custom classifications are private per tenant** (milestone 2) — assumed
+   yes (no cross-tenant sharing/marketplace for now).
+4. **Provisioning** (blocking the milestone-1 live URL): a Vercel project and
+   a Supabase project under accounts you control. Steps in
+   [`DEPLOYMENT.md`](DEPLOYMENT.md).
 
-Repo scaffold (Next.js + TypeScript + Drizzle + Supabase local dev), the
-schema's milestone-1 tables as real migrations, Supabase Auth with org
-creation/membership/roles, RLS policies, the adversarial two-tenant isolation
-test suite in CI, and a deployed Vercel URL with sign-in and org switching.
-Nothing else — no engine, no reference data yet.
+## Milestone 1 — delivered
+
+Built and pushed on `claude/sna-gdp-saas-planning-ubafb4`:
+
+- **Scaffold**: Next.js 15 App Router + TypeScript, Drizzle, `@supabase/ssr`
+  auth, production build green (6 routes + middleware).
+- **Migration** `supabase/migrations/0001_foundations.sql`: `organization`,
+  `membership` (4 roles), append-only `audit_log`, RLS helper functions,
+  policies with `FORCE ROW LEVEL SECURITY`, and the three member/org RPCs.
+- **The one database path**: `withRls()` in `src/db/rls.ts` — per-transaction
+  JWT claims, audit reason, and `SET LOCAL ROLE authenticated`. Nothing in app
+  runtime touches tenant tables any other way.
+- **UI**: sign-up, sign-in, sign-out, organization list and creation,
+  per-organization member list, admin-only add-member-by-email.
+- **Isolation suite**: `tests/rls/isolation.test.ts` — 20 tests across four
+  users and two organizations, all passing. Cross-tenant reads return zero
+  rows (existence never leaks), cross-tenant writes are refused, viewers
+  cannot write, the audit trail records who/what/why and rejects writes
+  without a reason, `audit_log` is append-only even for the table owner, and
+  `withRls` is asserted to actually run as `authenticated`.
+- **CI**: `.github/workflows/ci.yml` — Postgres 16 service, shim, migrations,
+  typecheck, isolation suite, production build, on every push and PR.
+
+**Not delivered: the live Vercel URL** — blocked on owner credentials (open
+question 4). Everything needed is in [`DEPLOYMENT.md`](DEPLOYMENT.md); it is a
+~10-minute click-through once the Supabase and Vercel projects exist.
+
+### Deviations from the approved design
+
+Two, both found by the isolation suite and recorded in `DECISIONS.md`:
+
+- **D9** — organizations are created by a SECURITY DEFINER RPC instead of an
+  INSERT policy plus a bootstrap trigger. The planned approach cannot work:
+  `INSERT ... RETURNING` must also pass the SELECT policy, and the trigger's
+  membership row does not exist yet at RETURNING time. `db/schema-proposal.sql`
+  has been corrected to match.
+- **D11** — the audit trigger records `org_id = new.id` for `organization`
+  rows; otherwise a tenant's own creation event would be invisible in its
+  audit trail.
+
+### Next: milestone 2 (reference data)
+
+Classification tables seeded from official UN sources (ISIC Rev.4, CPC Ver.2.1,
+COICOP, COFOG, institutional sectors) with the tenant mapping layer, plus the
+risk-3 spike: a synthetic 400-industry tenant and a national ISIC variant
+through the mapping layer, with drill-down query plans measured before any UI
+is built on them.

@@ -76,6 +76,43 @@ own entry here — this is the sharpest tool in the box.
 **Alternatives:** duplicating membership into JWT claims (stale-claims problem
 on role changes — rejected for a system where roles gate publication).
 
+## D9 — Organizations are created by RPC, not by a direct INSERT
+**Decision:** `public.create_organization(name, slug, fiscal_year_start_month)`
+(SECURITY DEFINER) inserts the organization and the creator's `admin`
+membership in one call. `authenticated` holds no INSERT grant on
+`organization`, and there is no INSERT policy.
+**Why:** The planned design (permissive INSERT policy + AFTER trigger granting
+the creator admin) fails in a way worth recording, because it looks correct
+and passes a naive test: `INSERT ... RETURNING` must satisfy the SELECT policy
+too, and at RETURNING time the trigger's membership row does not yet exist, so
+the whole statement is rejected with "new row violates row-level security
+policy". Found by the milestone-1 isolation suite before any UI existed. The
+RPC also makes creation atomic and lets us deny raw INSERTs outright, which is
+a smaller attack surface — a test now asserts direct INSERT is refused.
+**Alternatives:** insert without RETURNING and re-select the row (two
+round-trips, still needs the trigger, and the ordering subtlety stays latent);
+a BEFORE trigger (cannot insert the membership before the org row exists).
+
+## D10 — Reading member emails goes through a narrow SECURITY DEFINER RPC
+**Decision:** `public.org_members(org)` joins `membership` to `auth.users` and
+re-checks membership internally; `public.add_member_by_email(org, email, role)`
+re-checks the admin role internally. Both are revoked from `public`/`anon` and
+granted only to `authenticated`.
+**Why:** App roles cannot read `auth.users` (correctly — it would expose every
+user on the instance). These two functions are the entire authorized surface
+for user-directory access, each a few lines with its own permission check.
+**Alternatives:** mirroring emails into a `profiles` table (a second copy of
+personal data to keep in sync and protect — rejected for now; revisit if we
+need to display members without a round-trip to `auth`).
+
+## D11 — Audit `org_id` for `organization` rows is the row's own id
+**Decision:** The audit trigger records `org_id = new.id` when the audited
+table is `organization`, and `new.org_id` for every other tenant table.
+**Why:** Without it, creating an organization writes an audit row with a null
+`org_id`, which the `audit_select` policy then hides from everyone — the
+creation of a tenant would be the one event missing from its own audit trail.
+Caught by the isolation suite's audit assertions.
+
 ## D8 — Correctness fixtures
 **Decision:** Milestone 3 primary fixture: the SNA 2008 manual's integrated
 numerical example (the consistent illustrative economy in its tables; GDP at

@@ -1,0 +1,14 @@
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# local env files — secrets never enter the repo
+.env
+.env.*
+!.env.example
+
+# local test database cluster
+.pgdata/
+coverage/

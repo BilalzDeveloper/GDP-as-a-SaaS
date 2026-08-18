@@ -152,7 +152,11 @@ begin
   insert into public.audit_log
     (org_id, actor_id, table_name, action, row_pk, old_data, new_data, reason)
   values (
-    (to_jsonb(v_row) ->> 'org_id')::uuid,
+    -- organization rows ARE the org; every other tenant table carries org_id
+    coalesce(
+      to_jsonb(v_row) ->> 'org_id',
+      case when tg_table_name = 'organization' then to_jsonb(v_row) ->> 'id' end
+    )::uuid,
     auth.uid(), tg_table_name, tg_op,
     coalesce(to_jsonb(v_row) ->> 'id',
              to_jsonb(v_row) ->> 'org_id') ,
@@ -487,29 +491,16 @@ alter table organization force row level security;
 
 create policy org_select on organization for select
   using (private.is_org_member(id));
-create policy org_insert on organization for insert
-  to authenticated with check (true);   -- creator bootstraps; trigger below
+-- No INSERT policy: organizations are created only via the SECURITY DEFINER
+-- RPC public.create_organization(name, slug, fiscal_year_start_month), which
+-- inserts the org and the creator's admin membership atomically. (An insert
+-- policy + AFTER-trigger bootstrap fails subtly: INSERT ... RETURNING must
+-- also pass the SELECT policy, and the trigger-created membership does not
+-- exist yet at RETURNING time. See migration 0001 for the implementation.)
 create policy org_update on organization for update
   using (private.has_org_role(id, 'admin'));
 create policy org_delete on organization for delete
   using (private.has_org_role(id, 'admin'));
-
--- Creator automatically becomes admin (bootstrap before membership exists).
-create function private.bootstrap_org_admin()
-returns trigger
-language plpgsql security definer
-set search_path = ''
-as $$
-begin
-  insert into public.membership (org_id, user_id, role)
-  values (new.id, auth.uid(), 'admin');
-  return new;
-end;
-$$;
-
-create trigger organization_bootstrap_admin
-  after insert on organization
-  for each row execute function private.bootstrap_org_admin();
 
 alter table membership enable row level security;
 alter table membership force row level security;

@@ -92,6 +92,21 @@ Stop after each milestone. Show me what changed and what you'd do next.
 
 The plan responding to this brief lives in [`PLAN.md`](PLAN.md) (stack
 assessment, milestone 1–3 schema in [`db/schema-proposal.sql`](db/schema-proposal.sql),
-risk analysis, fixture choice) and is awaiting owner approval. Recorded
-choices live in [`DECISIONS.md`](DECISIONS.md). Do not start milestone
-implementation until the owner has approved the plan.
+risk analysis, fixture choice). It was **approved on 2026-08-18** and
+**milestone 1 is complete** — see "Milestone 1 — delivered" in `PLAN.md`.
+Recorded choices live in [`DECISIONS.md`](DECISIONS.md); add to it whenever you
+make a methodological or architectural decision.
+
+Working rules for sessions on this repo:
+
+- **Milestone 2 (reference data) is next.** Stop at the end of each milestone
+  and report, per the brief — do not run ahead into later milestones.
+- **`supabase/migrations/*.sql` is the schema source of truth.** Never edit an
+  applied migration; add a new numbered one. Keep `src/db/schema.ts` in sync.
+- **All tenant queries go through `withRls()`** (`src/db/rls.ts`). No app
+  runtime code may open its own connection or use the `service_role` key.
+- **The isolation suite is not optional.** `tests/rls/isolation.test.ts` must
+  stay green, and new tenant tables need matching policies and tests in the
+  same change.
+- Local test database: `bash scripts/test-db.sh`, then
+  `DATABASE_URL=... npm test`. See [`README.md`](README.md).
