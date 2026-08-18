@@ -1,0 +1,201 @@
+# SNA-Compliant GDP Compilation SaaS — Planning Proposal
+
+Status: **awaiting owner approval** (per the kickstart brief: no application code
+until this plan is agreed). Once approved, the agreed version of this plan gets
+promoted into `CLAUDE.md` so future sessions inherit it.
+
+This document answers the four "Start here" questions:
+
+1. [Stack: confirmed, with three challenges](#1-stack-assessment)
+2. [Database schema for milestones 1–3](#2-database-schema) — full SQL in
+   [`db/schema-proposal.sql`](db/schema-proposal.sql)
+3. [The three riskiest parts and de-risking](#3-risk-assessment)
+4. [Reference fixture for engine correctness](#4-correctness-fixture)
+
+---
+
+## 1. Stack assessment
+
+**Confirmed as proposed:** Next.js (App Router) + TypeScript + RSC; PostgreSQL;
+Drizzle ORM with checked-in SQL migrations; RLS at the database layer; Vercel
+deployment; Vitest for the engine, Playwright for critical flows.
+
+**Decision within the proposal: Supabase over Neon.** Three reasons, all tied to
+your non-negotiables:
+
+- **Auth → RLS integration.** Supabase Auth issues JWTs whose claims are
+  readable inside Postgres policies (`auth.uid()`). With Neon we'd pair Auth.js
+  with hand-rolled claim plumbing into the database session — more moving parts
+  in exactly the layer where a mistake is a catastrophic failure (requirement 3).
+- **Storage.** Milestone 4 needs somewhere to keep uploaded source files with
+  the *same* tenant isolation guarantees as the rows. Supabase Storage has
+  bucket policies that can mirror our org policies; with Neon we'd add S3 + a
+  second authorization model.
+- **Local dev.** `supabase start` gives a full local stack (Postgres + Auth +
+  Storage) in Docker, so the tenant-isolation test suite runs in CI against a
+  real database, not a mock.
+
+**Challenge 1 — Drizzle can silently bypass RLS.** RLS only applies to the role
+the connection uses. If the app connects as the table owner or with the
+`service_role` key, every policy is skipped without error. Non-negotiable
+implementation rules, testable in CI:
+
+- App runtime connects through the pooled connection (Supavisor, transaction
+  mode — required on Vercel serverless anyway) as the `authenticated` role,
+  never as `postgres`/`service_role`.
+- Every tenant-scoped query runs inside a transaction that does
+  `SET LOCAL request.jwt.claims = '<verified claims JSON>'` before Drizzle
+  queries execute. `SET LOCAL` is transaction-scoped, so it is safe under
+  transaction-mode pooling.
+- All tenant tables get `FORCE ROW LEVEL SECURITY`, so even an owner-role
+  connection cannot bypass policies.
+- The `service_role` key exists only in migration/seed scripts, never in any
+  environment variable available to app runtime code.
+
+**Challenge 2 — numeric precision needs an explicit policy, not a default.**
+Values are stored as `NUMERIC(20,6)` in Postgres. The pure engine uses IEEE-754
+doubles internally with a documented rounding-at-publication policy and
+tolerance-based test assertions. Rationale: doubles carry ~15–16 significant
+digits, comfortably beyond published national-accounts precision, and this is
+standard practice in official compilation systems; a decimal library would slow
+the engine and complicate the pure-module contract for no auditable benefit.
+The alternative (decimal.js throughout) is recorded in `DECISIONS.md` in case
+an NSO customer mandates exact decimal arithmetic.
+
+**Challenge 3 — free-tier limits shape milestone 5+, plan for it now.** Vercel
+serverless functions cap execution time; a 400-industry compilation run or a
+large XLSX parse may not fit in a request/response cycle. The engine being a
+pure module keeps our options open (run it in a background job, a queue, or
+even client-side for previews), but milestone 5 should assume runs execute
+asynchronously with a status field — the schema below already models
+`compilation_run.status` accordingly.
+
+## 2. Database schema
+
+Full proposal: [`db/schema-proposal.sql`](db/schema-proposal.sql) — runnable
+Postgres/Supabase SQL covering milestones 1–3, with RLS policies inline. It
+will be split into numbered Drizzle migrations once approved.
+
+Design decisions embedded in it (details in `DECISIONS.md`):
+
+- **Shared schema, `org_id` on every tenant row, RLS everywhere.**
+  Schema-per-tenant was rejected: migration fan-out, free-tier limits, and RLS
+  gives us defense-in-depth that per-schema search-path tricks don't.
+- **Classifications are data, not enums** (requirement 4). One generic
+  structure — `classification` → `classification_version` →
+  `classification_item` (hierarchical) — holds ISIC Rev.4, CPC Ver.2.1, COICOP,
+  COFOG, *and* institutional sectors. Tenants create their own classifications
+  (`owner_org_id` set) and map them to standard versions via
+  `classification_mapping_entry`, with weights to support 1-to-many splits.
+  A 10-industry aggregate and a 400-industry compilation are just different
+  classification versions.
+- **A time series is a coordinate, an observation is a fact.** `time_series`
+  is keyed by (transaction code, activity item, product item, sector item,
+  price basis, valuation, frequency) — dimension columns nullable, uniqueness
+  via `UNIQUE NULLS NOT DISTINCT`. `observation` is (series, period, vintage,
+  value).
+- **Vintages are append-only** (requirements 1–2). Observations belong to a
+  `data_vintage`. While a vintage is open, its rows can be corrected; the
+  moment it is frozen (`frozen_at` set), a trigger rejects any UPDATE/DELETE on
+  its observations. Publication and embargo live on the vintage. Revisions =
+  new vintage with `supersedes_vintage_id`. Re-computability = vintage +
+  pinned `method_version` (engine semver + full config JSON).
+- **Audit is a trigger, not a convention.** A generic row-level trigger writes
+  who/when/what-changed to `audit_log`; the "why" comes from
+  `set_config('app.reason', …)` which the app layer must set — writes without a
+  reason are rejected on audited tables. `audit_log` itself accepts inserts
+  only.
+- **Periods are org-scoped** because fiscal years vary by country; each org has
+  `fiscal_year_start_month`, and `reference_period` rows carry explicit start/
+  end dates plus a fiscal-year label.
+- **Roles**: `admin`, `compiler`, `reviewer`, `viewer` on `membership`. Write
+  policies require compiler/admin; approval transitions will require
+  reviewer/admin (enforced in milestone 7's workflow, the column is already
+  there).
+
+## 3. Risk assessment
+
+**Risk 1 — tenant isolation fails in an unobvious way.** RLS is easy to enable
+and easy to accidentally bypass: a service-role key in the wrong env var, a
+`SECURITY DEFINER` helper that leaks, a storage bucket without policies, a
+connection that never got the JWT claims set. *De-risk:* the milestone-1
+deliverable is an adversarial CI test suite, not just "RLS enabled" — seed two
+orgs, authenticate as each, and assert every tenant table and storage path
+returns zero cross-tenant rows, including via the exact pooled connection path
+production uses. `FORCE ROW LEVEL SECURITY` everywhere; every `SECURITY
+DEFINER` function gets a written justification in `DECISIONS.md`. This suite
+runs on every PR forever.
+
+**Risk 2 — the engine is subtly wrong.** Chain-linking with annual overlap,
+Denton benchmarking, valuation conversions, FISIM allocation — each has
+variants and edge cases, our users are professional statisticians, and one
+wrong published figure ends the product's credibility. *De-risk:* fixture-first
+TDD (tests transcribed from published official numbers *before* implementing —
+see §4); every function cites its SNA 2008 paragraph; every methodological
+choice with variants goes in `DECISIONS.md` with the alternatives named; every
+computed vintage pins the exact `method_version`, so a disputed figure can be
+re-run and audited; known-confusing behaviour (non-additivity of chained
+volumes) gets explicit UI copy, not a support ticket.
+
+**Risk 3 — the dimensional model is over- or under-engineered.** The same
+schema must serve a 10-industry aggregate and a 400-industry detailed
+compilation (requirement 4). Hardcoding dimensions fails the requirement;
+going fully generic (EAV-style) produces an unqueryable, unindexable swamp and
+a drill-down UI that can't perform. *De-risk:* the chosen middle path — fixed,
+indexed dimension columns that reference classification *items* — is validated
+early: milestone 2 includes a spike seeding one synthetic 400-industry tenant
+and one real national ISIC adaptation through the mapping layer, plus
+prototype drill-down queries (aggregate → contributing series → source
+records) with EXPLAIN output, *before* any UI is built on top.
+
+Honorable mentions (tracked, not top-three): embargo enforcement semantics
+(§ open questions), free-tier execution limits (stack challenge 3), and XLSX
+parsing memory limits on serverless.
+
+## 4. Correctness fixture
+
+**Primary fixture (milestone 3): the SNA 2008 manual's own integrated numerical
+example.** The manual runs one consistent illustrative economy through its
+account tables (GDP at market prices = 1,854 in the example's units), with all
+three approaches mutually consistent: production (output 3,604 − intermediate
+consumption 1,883 + taxes less subsidies on products), expenditure (final
+consumption + capital formation + exports − imports), and income (compensation
+of employees + operating surplus + mixed income + taxes less subsidies on
+production). It's the natural choice because it is *the* reference our users
+will check us against, it exercises all three approaches from one input set,
+and the discrepancy between approaches is exactly zero by construction — a
+sharp test of the engine's internal consistency. The fixture will be
+transcribed into a test data file with table/paragraph citations per number.
+
+**Secondary fixture (milestones 3, 6): Denmark's official national accounts**
+(Statistics Denmark, StatBank tables, English, machine-readable API). A small,
+impeccably documented compiler that publishes all three approaches and
+chain-linked volumes using the annual-overlap method — a real-world,
+non-round-number cross-check, and later the chain-linking fixture.
+
+**Method-specific fixtures:** IMF *Quarterly National Accounts Manual* (2017)
+worked examples for Denton proportional benchmarking (milestone 8); Eurostat
+*Handbook on Price and Volume Measures* examples for deflation and
+chain-linking edge cases (milestone 6).
+
+## Open questions before milestone 1
+
+1. **Embargo semantics.** Assumption: org members can see pre-release vintages
+   (that's their job); the embargo governs *publication/export* and any future
+   external sharing. Confirm, or should viewers-role users also be blocked
+   pre-embargo?
+2. **Quarterly periods under a fiscal year**: aligned to the fiscal year
+   (FY-Q1 starts at `fiscal_year_start_month`) — assumed yes.
+3. **Custom classifications are private per tenant** — assumed yes (no
+   cross-tenant sharing/marketplace for now).
+4. **Provisioning**: milestone 1 ends with a live Vercel URL, which needs a
+   Vercel project and a Supabase project linked to accounts you control —
+   these need to be created (or access granted) at milestone 1 start.
+
+## After go-ahead — milestone 1 scope
+
+Repo scaffold (Next.js + TypeScript + Drizzle + Supabase local dev), the
+schema's milestone-1 tables as real migrations, Supabase Auth with org
+creation/membership/roles, RLS policies, the adversarial two-tenant isolation
+test suite in CI, and a deployed Vercel URL with sign-in and org switching.
+Nothing else — no engine, no reference data yet.
