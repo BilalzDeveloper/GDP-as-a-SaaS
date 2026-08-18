@@ -9,6 +9,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "db:migrate": "node scripts/apply-migrations.mjs",
+    "db:seed": "node scripts/seed-reference.mjs",
+    "spike:scale": "node scripts/spike-scale.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },

@@ -1,0 +1,15 @@
+code,name,unit_type,currency_code,multiplier
+NC_UNITS,National currency (units),currency,,1
+NC_TH,National currency (thousands),currency,,1000
+NC_MN,National currency (millions),currency,,1000000
+NC_BN,National currency (billions),currency,,1000000000
+USD_MN,US Dollars (millions),currency,USD,1000000
+EUR_MN,Euro (millions),currency,EUR,1000000
+GBP_MN,Pound Sterling (millions),currency,GBP,1000000
+DKK_MN,Danish Krone (millions),currency,DKK,1000000
+INDEX,Index,index,,1
+PERCENT,Percent,other,,1
+PERSONS,Persons,count,,1
+PERSONS_TH,Persons (thousands),count,,1000
+FTE,Full-time equivalent jobs,count,,1
+HOURS_TH,Hours worked (thousands),count,,1000

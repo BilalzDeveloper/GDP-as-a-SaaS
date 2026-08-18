@@ -1,0 +1,110 @@
+code,name,parent_code,level,sort_order
+A,"Agriculture, forestry and fishing",,1,10
+01,"Crop and animal production, hunting and related service activities",A,2,20
+02,Forestry and logging,A,2,30
+03,Fishing and aquaculture,A,2,40
+B,Mining and quarrying,,1,50
+05,Mining of coal and lignite,B,2,60
+06,Extraction of crude petroleum and natural gas,B,2,70
+07,Mining of metal ores,B,2,80
+08,Other mining and quarrying,B,2,90
+09,Mining support service activities,B,2,100
+C,Manufacturing,,1,110
+10,Manufacture of food products,C,2,120
+11,Manufacture of beverages,C,2,130
+12,Manufacture of tobacco products,C,2,140
+13,Manufacture of textiles,C,2,150
+14,Manufacture of wearing apparel,C,2,160
+15,Manufacture of leather and related products,C,2,170
+16,"Manufacture of wood and of products of wood and cork, except furniture; manufacture of articles of straw and plaiting materials",C,2,180
+17,Manufacture of paper and paper products,C,2,190
+18,Printing and reproduction of recorded media,C,2,200
+19,Manufacture of coke and refined petroleum products,C,2,210
+20,Manufacture of chemicals and chemical products,C,2,220
+21,Manufacture of basic pharmaceutical products and pharmaceutical preparations,C,2,230
+22,Manufacture of rubber and plastics products,C,2,240
+23,Manufacture of other non-metallic mineral products,C,2,250
+24,Manufacture of basic metals,C,2,260
+25,"Manufacture of fabricated metal products, except machinery and equipment",C,2,270
+26,"Manufacture of computer, electronic and optical products",C,2,280
+27,Manufacture of electrical equipment,C,2,290
+28,Manufacture of machinery and equipment n.e.c.,C,2,300
+29,"Manufacture of motor vehicles, trailers and semi-trailers",C,2,310
+30,Manufacture of other transport equipment,C,2,320
+31,Manufacture of furniture,C,2,330
+32,Other manufacturing,C,2,340
+33,Repair and installation of machinery and equipment,C,2,350
+D,"Electricity, gas, steam and air conditioning supply",,1,360
+35,"Electricity, gas, steam and air conditioning supply",D,2,370
+E,"Water supply; sewerage, waste management and remediation activities",,1,380
+36,"Water collection, treatment and supply",E,2,390
+37,Sewerage,E,2,400
+38,"Waste collection, treatment and disposal activities; materials recovery",E,2,410
+39,Remediation activities and other waste management services,E,2,420
+F,Construction,,1,430
+41,Construction of buildings,F,2,440
+42,Civil engineering,F,2,450
+43,Specialized construction activities,F,2,460
+G,Wholesale and retail trade; repair of motor vehicles and motorcycles,,1,470
+45,Wholesale and retail trade and repair of motor vehicles and motorcycles,G,2,480
+46,"Wholesale trade, except of motor vehicles and motorcycles",G,2,490
+47,"Retail trade, except of motor vehicles and motorcycles",G,2,500
+H,Transportation and storage,,1,510
+49,Land transport and transport via pipelines,H,2,520
+50,Water transport,H,2,530
+51,Air transport,H,2,540
+52,Warehousing and support activities for transportation,H,2,550
+53,Postal and courier activities,H,2,560
+I,Accommodation and food service activities,,1,570
+55,Accommodation,I,2,580
+56,Food and beverage service activities,I,2,590
+J,Information and communication,,1,600
+58,Publishing activities,J,2,610
+59,"Motion picture, video and television programme production, sound recording and music publishing activities",J,2,620
+60,Programming and broadcasting activities,J,2,630
+61,Telecommunications,J,2,640
+62,"Computer programming, consultancy and related activities",J,2,650
+63,Information service activities,J,2,660
+K,Financial and insurance activities,,1,670
+64,"Financial service activities, except insurance and pension funding",K,2,680
+65,"Insurance, reinsurance and pension funding, except compulsory social security",K,2,690
+66,Activities auxiliary to financial service activities and insurance activities,K,2,700
+L,Real estate activities,,1,710
+68,Real estate activities,L,2,720
+M,"Professional, scientific and technical activities",,1,730
+69,Legal and accounting activities,M,2,740
+70,Activities of head offices; management consultancy activities,M,2,750
+71,Architectural and engineering activities; technical testing and analysis,M,2,760
+72,Scientific research and development,M,2,770
+73,Advertising and market research,M,2,780
+74,"Other professional, scientific and technical activities",M,2,790
+75,Veterinary activities,M,2,800
+N,Administrative and support service activities,,1,810
+77,Rental and leasing activities,N,2,820
+78,Employment activities,N,2,830
+79,"Travel agency, tour operator, reservation service and related activities",N,2,840
+80,Security and investigation activities,N,2,850
+81,Services to buildings and landscape activities,N,2,860
+82,"Office administrative, office support and other business support activities",N,2,870
+O,Public administration and defence; compulsory social security,,1,880
+84,Public administration and defence; compulsory social security,O,2,890
+P,Education,,1,900
+85,Education,P,2,910
+Q,Human health and social work activities,,1,920
+86,Human health activities,Q,2,930
+87,Residential care activities,Q,2,940
+88,Social work activities without accommodation,Q,2,950
+R,"Arts, entertainment and recreation",,1,960
+90,"Creative, arts and entertainment activities",R,2,970
+91,"Libraries, archives, museums and other cultural activities",R,2,980
+92,Gambling and betting activities,R,2,990
+93,Sports activities and amusement and recreation activities,R,2,1000
+S,Other service activities,,1,1010
+94,Activities of membership organizations,S,2,1020
+95,Repair of computers and personal and household goods,S,2,1030
+96,Other personal service activities,S,2,1040
+T,"Activities of households as employers; undifferentiated goods- and services-producing activities of households for own use",,1,1050
+97,Activities of households as employers of domestic personnel,T,2,1060
+98,Undifferentiated goods- and services-producing activities of private households for own use,T,2,1070
+U,Activities of extraterritorial organizations and bodies,,1,1080
+99,Activities of extraterritorial organizations and bodies,U,2,1090

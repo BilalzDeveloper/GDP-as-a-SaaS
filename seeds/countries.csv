@@ -1,0 +1,210 @@
+iso3,iso2,name,currency_code
+AFG,AF,Afghanistan,
+ALB,AL,Albania,
+DZA,DZ,Algeria,
+AND,AD,Andorra,EUR
+AGO,AO,Angola,
+ATG,AG,Antigua and Barbuda,
+ARG,AR,Argentina,ARS
+ARM,AM,Armenia,
+AUS,AU,Australia,AUD
+AUT,AT,Austria,EUR
+AZE,AZ,Azerbaijan,
+BHS,BS,Bahamas,
+BHR,BH,Bahrain,
+BGD,BD,Bangladesh,BDT
+BRB,BB,Barbados,
+BLR,BY,Belarus,
+BEL,BE,Belgium,EUR
+BLZ,BZ,Belize,
+BEN,BJ,Benin,
+BTN,BT,Bhutan,
+BOL,BO,Bolivia (Plurinational State of),
+BIH,BA,Bosnia and Herzegovina,
+BWA,BW,Botswana,
+BRA,BR,Brazil,BRL
+BRN,BN,Brunei Darussalam,
+BGR,BG,Bulgaria,
+BFA,BF,Burkina Faso,
+BDI,BI,Burundi,
+CPV,CV,Cabo Verde,
+KHM,KH,Cambodia,
+CMR,CM,Cameroon,
+CAN,CA,Canada,CAD
+CAF,CF,Central African Republic,
+TCD,TD,Chad,
+CHL,CL,Chile,CLP
+CHN,CN,China,CNY
+COL,CO,Colombia,COP
+COM,KM,Comoros,
+COG,CG,Congo,
+COD,CD,Congo (Democratic Republic of the),
+CRI,CR,Costa Rica,
+CIV,CI,Côte d'Ivoire,
+HRV,HR,Croatia,EUR
+CUB,CU,Cuba,
+CYP,CY,Cyprus,EUR
+CZE,CZ,Czechia,CZK
+DNK,DK,Denmark,DKK
+DJI,DJ,Djibouti,
+DMA,DM,Dominica,
+DOM,DO,Dominican Republic,
+ECU,EC,Ecuador,USD
+EGY,EG,Egypt,EGP
+SLV,SV,El Salvador,USD
+GNQ,GQ,Equatorial Guinea,
+ERI,ER,Eritrea,
+EST,EE,Estonia,EUR
+SWZ,SZ,Eswatini,
+ETH,ET,Ethiopia,
+FJI,FJ,Fiji,
+FIN,FI,Finland,EUR
+FRA,FR,France,EUR
+GAB,GA,Gabon,
+GMB,GM,Gambia,
+GEO,GE,Georgia,
+DEU,DE,Germany,EUR
+GHA,GH,Ghana,GHS
+GRC,GR,Greece,EUR
+GRD,GD,Grenada,
+GTM,GT,Guatemala,
+GIN,GN,Guinea,
+GNB,GW,Guinea-Bissau,
+GUY,GY,Guyana,
+HTI,HT,Haiti,
+HND,HN,Honduras,
+HUN,HU,Hungary,HUF
+ISL,IS,Iceland,ISK
+IND,IN,India,INR
+IDN,ID,Indonesia,IDR
+IRN,IR,Iran (Islamic Republic of),
+IRQ,IQ,Iraq,
+IRL,IE,Ireland,EUR
+ISR,IL,Israel,ILS
+ITA,IT,Italy,EUR
+JAM,JM,Jamaica,
+JPN,JP,Japan,JPY
+JOR,JO,Jordan,
+KAZ,KZ,Kazakhstan,
+KEN,KE,Kenya,KES
+KIR,KI,Kiribati,
+PRK,KP,Korea (Democratic People's Republic of),
+KOR,KR,Korea (Republic of),KRW
+KWT,KW,Kuwait,
+KGZ,KG,Kyrgyzstan,
+LAO,LA,Lao People's Democratic Republic,
+LVA,LV,Latvia,EUR
+LBN,LB,Lebanon,
+LSO,LS,Lesotho,
+LBR,LR,Liberia,
+LBY,LY,Libya,
+LIE,LI,Liechtenstein,CHF
+LTU,LT,Lithuania,EUR
+LUX,LU,Luxembourg,EUR
+MDG,MG,Madagascar,
+MWI,MW,Malawi,
+MYS,MY,Malaysia,MYR
+MDV,MV,Maldives,
+MLI,ML,Mali,
+MLT,MT,Malta,EUR
+MHL,MH,Marshall Islands,USD
+MRT,MR,Mauritania,
+MUS,MU,Mauritius,
+MEX,MX,Mexico,MXN
+FSM,FM,Micronesia (Federated States of),USD
+MDA,MD,Moldova (Republic of),
+MCO,MC,Monaco,EUR
+MNG,MN,Mongolia,
+MNE,ME,Montenegro,EUR
+MAR,MA,Morocco,MAD
+MOZ,MZ,Mozambique,
+MMR,MM,Myanmar,
+NAM,NA,Namibia,
+NRU,NR,Nauru,AUD
+NPL,NP,Nepal,
+NLD,NL,Netherlands,EUR
+NZL,NZ,New Zealand,NZD
+NIC,NI,Nicaragua,
+NER,NE,Niger,
+NGA,NG,Nigeria,NGN
+MKD,MK,North Macedonia,
+NOR,NO,Norway,NOK
+OMN,OM,Oman,
+PAK,PK,Pakistan,PKR
+PLW,PW,Palau,USD
+PSE,PS,Palestine (State of),
+PAN,PA,Panama,USD
+PNG,PG,Papua New Guinea,
+PRY,PY,Paraguay,
+PER,PE,Peru,PEN
+PHL,PH,Philippines,PHP
+POL,PL,Poland,PLN
+PRT,PT,Portugal,EUR
+QAT,QA,Qatar,
+ROU,RO,Romania,RON
+RUS,RU,Russian Federation,RUB
+RWA,RW,Rwanda,
+KNA,KN,Saint Kitts and Nevis,
+LCA,LC,Saint Lucia,
+VCT,VC,Saint Vincent and the Grenadines,
+WSM,WS,Samoa,
+SMR,SM,San Marino,EUR
+STP,ST,Sao Tome and Principe,
+SAU,SA,Saudi Arabia,SAR
+SEN,SN,Senegal,
+SRB,RS,Serbia,RSD
+SYC,SC,Seychelles,
+SLE,SL,Sierra Leone,
+SGP,SG,Singapore,SGD
+SVK,SK,Slovakia,EUR
+SVN,SI,Slovenia,EUR
+SLB,SB,Solomon Islands,
+SOM,SO,Somalia,
+ZAF,ZA,South Africa,ZAR
+SSD,SS,South Sudan,
+ESP,ES,Spain,EUR
+LKA,LK,Sri Lanka,LKR
+SDN,SD,Sudan,
+SUR,SR,Suriname,
+SWE,SE,Sweden,SEK
+CHE,CH,Switzerland,CHF
+SYR,SY,Syrian Arab Republic,
+TJK,TJ,Tajikistan,
+THA,TH,Thailand,THB
+TLS,TL,Timor-Leste,USD
+TGO,TG,Togo,
+TON,TO,Tonga,
+TTO,TT,Trinidad and Tobago,
+TUN,TN,Tunisia,
+TUR,TR,Türkiye,TRY
+TKM,TM,Turkmenistan,
+TUV,TV,Tuvalu,AUD
+UGA,UG,Uganda,UGX
+UKR,UA,Ukraine,UAH
+ARE,AE,United Arab Emirates,AED
+GBR,GB,United Kingdom of Great Britain and Northern Ireland,GBP
+TZA,TZ,Tanzania (United Republic of),TZS
+USA,US,United States of America,USD
+URY,UY,Uruguay,UYU
+UZB,UZ,Uzbekistan,
+VUT,VU,Vanuatu,
+VAT,VA,Holy See,EUR
+VEN,VE,Venezuela (Bolivarian Republic of),
+VNM,VN,Viet Nam,VND
+YEM,YE,Yemen,
+ZMB,ZM,Zambia,
+ZWE,ZW,Zimbabwe,
+HKG,HK,Hong Kong,HKD
+MAC,MO,Macao,
+TWN,TW,Taiwan (Province of China),TWD
+PRI,PR,Puerto Rico,USD
+GRL,GL,Greenland,DKK
+FRO,FO,Faroe Islands,DKK
+GIB,GI,Gibraltar,
+IMN,IM,Isle of Man,GBP
+JEY,JE,Jersey,GBP
+GGY,GG,Guernsey,GBP
+BMU,BM,Bermuda,
+CYM,KY,Cayman Islands,
+NCL,NC,New Caledonia,
+PYF,PF,French Polynesia,

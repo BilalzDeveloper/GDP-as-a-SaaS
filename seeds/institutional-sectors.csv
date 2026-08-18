@@ -1,0 +1,28 @@
+code,name,parent_code,level,sort_order
+S.1,Total economy,,1,10
+S.11,Non-financial corporations,S.1,2,20
+S.11001,Public non-financial corporations,S.11,3,30
+S.11002,National private non-financial corporations,S.11,3,40
+S.11003,Foreign controlled non-financial corporations,S.11,3,50
+S.12,Financial corporations,S.1,2,60
+S.121,Central bank,S.12,3,70
+S.122,"Deposit-taking corporations, except the central bank",S.12,3,80
+S.123,Money market funds,S.12,3,90
+S.124,Non-MMF investment funds,S.12,3,100
+S.125,"Other financial intermediaries, except insurance corporations and pension funds",S.12,3,110
+S.126,Financial auxiliaries,S.12,3,120
+S.127,Captive financial institutions and money lenders,S.12,3,130
+S.128,Insurance corporations,S.12,3,140
+S.129,Pension funds,S.12,3,150
+S.13,General government,S.1,2,160
+S.1311,Central government,S.13,3,170
+S.1312,State government,S.13,3,180
+S.1313,Local government,S.13,3,190
+S.1314,Social security funds,S.13,3,200
+S.14,Households,S.1,2,210
+S.141,Employers,S.14,3,220
+S.142,Own-account workers,S.14,3,230
+S.143,Employees,S.14,3,240
+S.144,Recipients of property and transfer income,S.14,3,250
+S.15,Non-profit institutions serving households,S.1,2,260
+S.2,Rest of the world,,1,270

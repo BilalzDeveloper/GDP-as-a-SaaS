@@ -56,6 +56,12 @@ export default async function OrgPage({
       </p>
       {error && <p className="error">{error}</p>}
 
+      <p>
+        <Link href={`/orgs/${org.slug}/classifications`}>
+          Classifications and mappings
+        </Link>
+      </p>
+
       <h2>Members</h2>
       <div className="card">
         <table>

@@ -5,10 +5,12 @@ National Accounts (SNA 2008): National Statistical Offices and researchers
 upload source data, map it to standard classifications, and compute GDP by all
 three approaches with full audit trails and reproducible vintages.
 
-**Status: milestone 1 (Foundations) complete, pending a live deployment.**
-Auth, organizations, roles, the audit trail and Row-Level Security are in
-place, with an adversarial two-tenant isolation suite (20 tests) running in
-CI. No compilation features yet — those start at milestone 3.
+**Status: milestones 1–2 complete, pending a live deployment.** Auth,
+organizations, roles, the audit trail and Row-Level Security are in place, as
+is the reference-data layer — ISIC, CPC, COICOP, COFOG and the SNA
+institutional sectors, with a tenant mapping layer for national adaptations.
+84 tests run in CI, including an adversarial tenant-isolation suite. The
+calculation engine starts at milestone 3.
 
 ## Documentation
 
@@ -18,6 +20,8 @@ CI. No compilation features yet — those start at milestone 3.
   schema design (milestone 1's part is live in `supabase/migrations/`)
 - [`DECISIONS.md`](DECISIONS.md) — append-only record of methodological and
   architectural choices
+- [`docs/reference-data.md`](docs/reference-data.md) — classification
+  provenance, loading the official UN files, the mapping layer
 - [`DEPLOYMENT.md`](DEPLOYMENT.md) — Supabase + Vercel setup (needs owner
   credentials)
 - [`CLAUDE.md`](CLAUDE.md) — the original project brief
@@ -30,7 +34,10 @@ src/db/rls.ts       the ONE tenant-scoped database path — see below
 src/db/schema.ts    Drizzle mirror of the SQL schema
 src/lib/supabase/   auth clients (sessions only, never tenant data)
 supabase/migrations/  SQL migrations — the source of truth for the schema
+seeds/              reference data as CSV (classifications, codes, countries)
+scripts/            migrations, seeding, official-file loader, scale spike
 tests/rls/          adversarial tenant-isolation suite
+tests/reference/    reference-data isolation and seed integrity
 ```
 
 ## Tenant isolation
@@ -56,7 +63,9 @@ The isolation suite needs a Postgres. Locally:
 
 ```bash
 bash scripts/test-db.sh   # starts a throwaway cluster, applies shim + migrations
-DATABASE_URL=postgresql://postgres:postgres@localhost:54329/gdp_test npm test
+export DATABASE_URL=postgresql://postgres:postgres@localhost:54329/gdp_test
+npm run db:seed           # reference data — the suite asserts against it
+npm test
 ```
 
 `tests/rls/shim.sql` recreates the Supabase preconditions (the `auth` schema,

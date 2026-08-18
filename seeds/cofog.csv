@@ -1,0 +1,11 @@
+code,name,parent_code,level,sort_order
+01,General public services,,1,10
+02,Defence,,1,20
+03,Public order and safety,,1,30
+04,Economic affairs,,1,40
+05,Environmental protection,,1,50
+06,Housing and community amenities,,1,60
+07,Health,,1,70
+08,"Recreation, culture and religion",,1,80
+09,Education,,1,90
+10,Social protection,,1,100

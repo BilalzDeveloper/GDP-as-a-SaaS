@@ -1,0 +1,11 @@
+code,name,parent_code,level,sort_order
+0,"Agriculture, forestry and fishery products",,1,10
+1,"Ores and minerals; electricity, gas and water",,1,20
+2,"Food products, beverages and tobacco; textiles, apparel and leather products",,1,30
+3,"Other transportable goods, except metal products, machinery and equipment",,1,40
+4,"Metal products, machinery and equipment",,1,50
+5,Constructions and construction services,,1,60
+6,"Distributive trade services; accommodation, food and beverage serving services; transport services; and electricity, gas and water distribution services",,1,70
+7,Financial and related services; real estate services; and rental and leasing services,,1,80
+8,Business and production services,,1,90
+9,"Community, social and personal services",,1,100

@@ -1,8 +1,9 @@
 # SNA-Compliant GDP Compilation SaaS — Planning Proposal
 
-Status: **approved 2026-08-18.** Milestone 1 is built — see
-[Milestone 1 — delivered](#milestone-1--delivered) at the end of this document.
-Milestones 2–8 stand as planned below.
+Status: **approved 2026-08-18.** Milestones 1 and 2 are built — see
+[Milestone 1 — delivered](#milestone-1--delivered) and
+[Milestone 2 — delivered](#milestone-2--delivered) at the end of this document.
+Milestones 3–8 stand as planned below.
 
 This document answers the four "Start here" questions:
 
@@ -234,10 +235,79 @@ Two, both found by the isolation suite and recorded in `DECISIONS.md`:
   rows; otherwise a tenant's own creation event would be invisible in its
   audit trail.
 
-### Next: milestone 2 (reference data)
+## Milestone 2 — delivered
 
-Classification tables seeded from official UN sources (ISIC Rev.4, CPC Ver.2.1,
-COICOP, COFOG, institutional sectors) with the tenant mapping layer, plus the
-risk-3 spike: a synthetic 400-industry tenant and a national ISIC variant
-through the mapping layer, with drill-down query plans measured before any UI
-is built on them.
+Migration `0002_reference_data.sql`, seeds, loader, spike and tests:
+
+- **Reference tables**: `currency` (52), `country` (209, full ISO 3166-1 shape
+  with currency links), `unit` (14, explicit multipliers so a source in
+  thousands can never be added to a series in millions), `transaction_code`
+  (26, covering every code named in the brief).
+- **Classifications as data** (non-negotiable 4): one generic
+  classification → version → hierarchical item structure holding ISIC Rev.4
+  (21 sections + 88 divisions), CPC Ver.2.1 (10 sections), COICOP 1999 (12
+  divisions), COFOG (10 divisions) and the SNA 2008 institutional sectors
+  (complete to subsector level).
+- **Provenance, recorded honestly** — see the caveat below and
+  [`docs/reference-data.md`](docs/reference-data.md).
+- **Tenant mapping layer**: weighted 1-to-many entries, a
+  `validate_classification_mapping()` query reporting the three problems that
+  would corrupt a compilation (weights not summing to 1, unmapped source items,
+  entries outside the declared versions), and
+  `activate_classification_mapping()` which refuses to activate until the
+  mapping is sound.
+- **UI**: a classifications page per organization showing each version's
+  provenance and true depth, plus mapping status.
+- **Tests**: 64 new (84 total, all green) — reference-data isolation across two
+  tenants, tenant classifications and mappings invisible to other orgs,
+  viewers read-only, shared reference data unwritable by any tenant, the
+  cross-version hierarchy guard, mapping validation and activation, provenance
+  constraints, and seed-file integrity checked independently of the database.
+
+### Caveat: the seeds are transcribed, not downloaded
+
+This environment's network policy blocks `unstats.un.org`, so the
+classifications were transcribed from the published structures rather than
+fetched. Every seeded version is therefore marked
+`transcribed_pending_verification` in the database and labelled
+"awaiting verification" in the UI, and a check constraint prevents any version
+claiming `official_file` provenance without a URL, SHA-256 and retrieval date.
+
+`scripts/load-classification.mjs` closes this out: point it at the official
+file and it **diffs first**, reporting every name difference and missing code,
+and writes only with `--apply`. Verified against a synthetic file containing a
+deliberate error — the loader reported it and refused to write. Running it for
+ISIC and CPC once you have network access is the first task of milestone 3's
+setup, and it is the only way these versions become `official_file`.
+
+Depth is recorded per version (`seeded_to_level`), so nothing implies coverage
+that is not there: ISIC is present to division level, not class level.
+
+### Risk-3 spike: result
+
+Ran 25 synthetic tenants × 400 national industries (12,368 classification
+items, 12,200 mapping entries), each mapped onto ISIC divisions through the
+mapping layer, then measured the queries the compilation UI will run:
+
+| Query | Result |
+|---|---|
+| Aggregate → contributing national industries | 0.48 ms, index-only, no sequential scans |
+| Full national hierarchy (naive self-join) | 2.59 ms, **sequential scan over all 12,368 items** |
+| Same hierarchy via `classification_tree()` | 0.58 ms, index scans — 4.5x faster |
+| National → ISIC section rollup (400 → 21) | 1.34 ms, no sequential scans |
+
+The finding worth having: a hierarchy self-join that constrains only
+`parent.id = child.parent_id` scans every item belonging to *every tenant*, so
+its cost grows with the customer count rather than the tenant's own data. The
+parent is guaranteed to be in the same version, so constraining
+`parent.version_id = child.version_id` restores the index. That is now baked
+into `classification_tree()` rather than left to convention (DECISIONS.md D14).
+The dimensional model itself needed no change: a 400-industry compilation and a
+10-industry aggregate really are just two classification versions.
+
+### Next: milestone 3 (calculation engine)
+
+The pure, dependency-free TypeScript module — all three approaches at current
+prices, tests written alongside, every function citing its SNA 2008 reference,
+validated against the manual's integrated numerical example with Statistics
+Denmark as the real-world cross-check.

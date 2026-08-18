@@ -127,3 +127,63 @@ construction); Denmark adds non-round real numbers and an English-documented
 methodology.
 **Alternatives:** a large country (UK/US) — heavier data, methodological
 special cases too early.
+
+## D12 — Reference data records its provenance, and seeds are marked unverified
+**Decision:** Every `classification_version` carries a `provenance` of
+`official_file`, `transcribed_pending_verification` or `tenant_defined`, plus
+`source_url`, `source_file_sha256`, `source_retrieved_at` and
+`seeded_to_level`. A check constraint (`official_needs_evidence`) forbids
+claiming official provenance without the URL, checksum and retrieval date.
+Everything shipped in `seeds/` is `transcribed_pending_verification`, and the
+UI says so.
+**Why:** The development environment's network policy blocks
+`unstats.un.org`, so the seeds were transcribed from the published structures
+rather than downloaded. An NSO must be able to distinguish data verified
+against the official publication from data that merely looks right — silently
+presenting transcribed codes as official would be exactly the kind of
+unfounded authority this product cannot afford. Recording depth
+(`seeded_to_level`) serves the same purpose: ISIC is present to division
+level, and nothing should imply it holds classes.
+**Alternatives:** waiting for network access before seeding anything (blocks
+milestone 3, which needs codes to compile against); seeding silently and
+fixing later (the failure mode is a compiler trusting an unverified code).
+
+## D13 — The official-file loader diffs before it writes
+**Decision:** `scripts/load-classification.mjs` parses the published UN
+structure file, reports new codes, name differences and codes stored but
+absent from the file, and exits. It writes only with `--apply`, and applying
+stamps provenance, checksum and true depth.
+**Why:** The moment the official file arrives it becomes the arbiter, and the
+interesting output is the *diff* — that is where a transcription error shows
+up. A loader that just upserted would repair the database and destroy the
+evidence that our seed file was wrong, leaving the same error to reappear on
+the next fresh database. Verified with a synthetic file carrying a deliberate
+error: the loader reported it and refused to write.
+**Alternatives:** straight upsert (loses the signal); a separate verify
+command (two code paths over the same parser, easy to skip).
+
+## D14 — Hierarchy self-joins must constrain both sides by version
+**Decision:** Read classification hierarchies through
+`classification_tree(version_id)`, which joins `parent.version_id =
+child.version_id` as well as `parent.id = child.parent_id`.
+**Why:** The parent is guaranteed to be in the same version (enforced by
+`classification_item_parent_guard`), but the planner cannot infer that, so the
+obvious self-join hash-joins against every item of every tenant. The risk-3
+spike measured 3.98 ms with a 12,368-row sequential scan versus 0.59 ms
+through the index — a 4.5x gap at 25 tenants that widens linearly as tenants
+are added. This is the "drill-down UI can't perform" risk arriving early and
+cheaply, exactly where the spike was meant to catch it.
+**Alternatives:** documenting the convention and trusting callers (the wrong
+version is the easy one to write); a materialised closure table (premature —
+revisit if hierarchies get deep enough that recursive walks hurt).
+
+## D15 — COICOP 1999 seeded, not COICOP 2018
+**Decision:** The seeded COICOP version is 1999 (12 divisions), as
+`COICOP1999`.
+**Why:** SNA 2008 is written against COICOP 1999, and this product implements
+SNA 2008. COICOP 2018 restructures into 13 divisions and is a genuinely
+different classification, not a revision to fold in silently.
+**Alternatives:** seeding 2018 instead (mismatches the manual we implement);
+seeding both now (no consumer yet — add it as a second
+`classification_version` when a tenant needs it, which the model already
+supports).
