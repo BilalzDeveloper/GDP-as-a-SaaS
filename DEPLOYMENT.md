@@ -17,13 +17,19 @@ once by you. Everything after step 5 is automatic on each push.
 ```bash
 # The pooled URL from Dashboard → Connect → Transaction pooler
 export DATABASE_URL='postgresql://postgres.<ref>:<password>@<region>.pooler.supabase.com:6543/postgres'
-npm run db:migrate
+npm run db:migrate   # schema
+npm run db:seed      # reference data — classifications, codes, countries
 ```
+
+Both are idempotent, so re-running them after a later migration is safe.
+Skipping `db:seed` leaves the app working but with no classifications, which
+makes the classifications page empty and blocks milestone 4 onwards.
 
 Do **not** run `tests/rls/shim.sql` against Supabase — it exists only to fake
 the `auth` schema and roles on a plain Postgres for local/CI runs.
 
-Alternatively, with the Supabase CLI linked to the project: `supabase db push`.
+Alternatively, for the schema, with the Supabase CLI linked to the project:
+`supabase db push`. The seed still has to run separately.
 
 ## 3. Configure Auth
 
@@ -62,6 +68,11 @@ prefer immediate sessions.
    (RLS makes "not yours" and "does not exist" indistinguishable on purpose.)
 4. As an admin, add the second account to your org by email and confirm the
    role shows in the members table.
+5. Open **Classifications and mappings** from an organization page. You should
+   see ISIC4, CPC21, COICOP1999, COFOG and SNA_SECTOR, each labelled
+   "Transcribed — awaiting verification". That label is correct and expected —
+   see [`docs/reference-data.md`](docs/reference-data.md) for what it means and
+   how to replace it with official files.
 
 ## What is deliberately not automated
 
