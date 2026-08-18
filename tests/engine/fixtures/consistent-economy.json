@@ -1,0 +1,42 @@
+{
+  "name": "Consistent illustrative economy",
+  "provenance": "synthetic",
+  "source": "Constructed for this repository; not from any official publication.",
+  "description": "A small economy whose production, expenditure and income accounts are mutually consistent by construction, so all three approaches yield the same GDP and the statistical discrepancy is exactly zero. Its purpose is to test the engine's internal consistency and the discrepancy machinery, NOT to validate against published national accounts — see tests/engine/fixtures/README.md.",
+  "unit": "arbitrary currency units",
+  "expected": {
+    "totalGrossValueAdded": 2700,
+    "gdp": 2950
+  },
+  "production": {
+    "outputValuation": "basic",
+    "taxesOnProducts": 320,
+    "subsidiesOnProducts": 70,
+    "industries": [
+      { "code": "A", "output": 500, "intermediateConsumption": 200 },
+      { "code": "C", "output": 2000, "intermediateConsumption": 1200 },
+      { "code": "F", "output": 700, "intermediateConsumption": 400 },
+      { "code": "G", "output": 900, "intermediateConsumption": 350 },
+      { "code": "K", "output": 400, "intermediateConsumption": 150 },
+      { "code": "O", "output": 800, "intermediateConsumption": 300 }
+    ]
+  },
+  "expenditure": {
+    "householdFinalConsumption": 1700,
+    "npishFinalConsumption": 60,
+    "governmentFinalConsumption": 550,
+    "grossFixedCapitalFormation": 600,
+    "changesInInventories": 40,
+    "acquisitionsLessDisposalsOfValuables": 10,
+    "exports": 700,
+    "imports": 710,
+    "includesImputedRent": true
+  },
+  "income": {
+    "compensationOfEmployees": 1500,
+    "grossOperatingSurplus": 800,
+    "grossMixedIncome": 300,
+    "taxesOnProductionAndImports": 420,
+    "subsidies": 70
+  }
+}

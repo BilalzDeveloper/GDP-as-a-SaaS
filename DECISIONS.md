@@ -114,6 +114,9 @@ creation of a tenant would be the one event missing from its own audit trail.
 Caught by the isolation suite's audit assertions.
 
 ## D8 — Correctness fixtures
+**Superseded in part by D16.** The GDP figure of 1,854 quoted below was
+recalled, not verified, and must not be used as a fixture. The choice of
+sources stands; the number does not.
 **Decision:** Milestone 3 primary fixture: the SNA 2008 manual's integrated
 numerical example (the consistent illustrative economy in its tables; GDP at
 market prices 1,854), transcribed with per-number table citations. Secondary:
@@ -187,3 +190,76 @@ different classification, not a revision to fold in silently.
 seeding both now (no consumer yet — add it as a second
 `classification_version` when a tenant needs it, which the model already
 supports).
+
+## D16 — The engine is validated for internal consistency, not against published accounts
+**Decision:** Milestone 3 ships with synthetic fixtures only. Every fixture
+declares `provenance`, and a test refuses to let a fixture claim `official`
+provenance without per-figure citations.
+**Why:** Neither planned fixture could be obtained — the network policy denies
+`unstats.un.org`, `dst.dk` and `ec.europa.eu`. **This corrects D8 and the
+planning document, which quoted the SNA example's GDP as 1,854: that figure
+was recalled, not verified, and must not be used as a fixture.** Building an
+"official" test around a remembered number produces a suite that looks
+authoritative and proves nothing, which is worse than having no official
+fixture at all — a statistician checking against the manual would find it
+immediately, and rightly stop trusting everything around it.
+What the synthetic fixtures do establish: the three approaches agree exactly
+on consistent inputs (discrepancy exactly zero, not merely small), the
+identities hold, sign conventions are right, FISIM behaves as SNA 2008
+requires under both treatments, and results are invariant to industry count
+and ordering. What they cannot establish is that our reading of the standard
+matches a real publication.
+**Consequence:** until an official fixture passes, the engine is described as
+internally consistent, never as validated. Loading one is the first task of
+milestone 4, and if the engine disagrees with published figures, the engine is
+wrong until proven otherwise.
+**Alternatives:** transcribing the numbers from memory (rejected above);
+delaying the engine until network access exists (blocks everything downstream
+for an external dependency with no timeline).
+
+## D17 — The balancing anchor is configurable; the engine never forces agreement
+**Decision:** `compileGdp` takes `anchor: 'production' | 'expenditure' |
+'income' | 'none'`, defaulting to production when available (and to the sole
+approach supplied when only one is). The headline is that approach's estimate;
+every other approach is reported with its discrepancy. An explicitly requested
+anchor with no matching input is an error, never a silent substitution.
+**Why:** There is no universally correct anchor — many NSOs anchor annual
+estimates on production, others on expenditure, and some publish a figure
+balanced through supply-and-use tables. More importantly, the engine must not
+reconcile by adjusting: the statistical discrepancy is the most informative
+diagnostic a compiler has, and averaging or forcing agreement would destroy
+it. `'none'` exists for compilers who want all three reported with no headline
+chosen.
+**Alternatives:** hardcoding production (fails the countries that do not);
+averaging the approaches (invents a figure no source supports); automatic
+supply-and-use balancing (a genuine feature, but it belongs with the
+compilation workflow in milestone 5+, not buried in the engine).
+
+## D18 — FISIM allocated by default, unallocated available as a variant
+**Decision:** `treatment: 'allocated'` (default) puts the producer-consumed
+portion into intermediate consumption — GDP-neutral, since it offsets the
+financial corporations' output — and lets the household, government and
+export portions raise GDP. `treatment: 'unallocated'` routes the whole of
+FISIM to a nominal industry's intermediate consumption so it contributes
+nothing.
+**Why:** SNA 2008 ch.6 and ch.17 require allocation; the unallocated
+convention was permitted under SNA 1993 and is still encountered, so the
+working agreement ("implement the common one, make it configurable, note the
+alternatives") applies. Interface consequence worth stating: industry
+intermediate consumption must be supplied EXCLUDING allocated FISIM, or it is
+double-counted. The engine warns when allocations do not exhaust FISIM output
+and when FISIM is allocated to an industry that was not supplied.
+**Alternatives:** inferring the allocation from industry shares (invents data
+the compiler is responsible for); supporting only the SNA 2008 treatment
+(unhelpful to anyone migrating an existing compilation).
+
+## D19 — Producers'-price output is refused, not converted silently
+**Decision:** `computeProductionApproach` throws when `outputValuation` is
+`'producers'`, directing the caller to `basicPricesFromProducers()`.
+**Why:** The brief requires valuation conversions to be explicit. The
+conversion needs the taxes and subsidies embedded in the output figure, which
+the caller has and the engine does not; guessing them would silently
+misstate GDP in a way no test on our side would catch.
+**Alternatives:** accepting producers' prices and adjusting with the
+economy-wide D.21/D.31 totals (wrong whenever the product tax mix differs by
+industry, and invisible when it is wrong).

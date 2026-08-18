@@ -1,9 +1,15 @@
 # SNA-Compliant GDP Compilation SaaS — Planning Proposal
 
-Status: **approved 2026-08-18.** Milestones 1 and 2 are built — see
-[Milestone 1 — delivered](#milestone-1--delivered) and
-[Milestone 2 — delivered](#milestone-2--delivered) at the end of this document.
-Milestones 3–8 stand as planned below.
+Status: **approved 2026-08-18.** Milestones 1–3 are built — see
+[Milestone 1](#milestone-1--delivered), [Milestone 2](#milestone-2--delivered)
+and [Milestone 3](#milestone-3--delivered) at the end of this document.
+Milestones 4–8 stand as planned below.
+
+> **Correction to §4 below.** That section names the SNA 2008 numerical
+> example as the engine fixture and quotes its GDP as 1,854. That figure was
+> recalled, not verified, and is not used anywhere in the code or tests. The
+> choice of sources stands; see [Milestone 3](#milestone-3--delivered) and
+> `DECISIONS.md` D16 for what was actually built and what validation remains.
 
 This document answers the four "Start here" questions:
 
@@ -305,9 +311,63 @@ into `classification_tree()` rather than left to convention (DECISIONS.md D14).
 The dimensional model itself needed no change: a 400-industry compilation and a
 10-industry aggregate really are just two classification versions.
 
-### Next: milestone 3 (calculation engine)
+## Milestone 3 — delivered
 
-The pure, dependency-free TypeScript module — all three approaches at current
-prices, tests written alongside, every function citing its SNA 2008 reference,
-validated against the manual's integrated numerical example with Statistics
-Denmark as the real-world cross-check.
+`src/engine/` — pure, dependency-free, no database imports, no I/O, no
+environment access, enforced by `tests/engine/purity.test.ts` rather than by
+review.
+
+- **Production approach** (SNA 2008 ch.6, ch.7): `B.1g = P.1 − P.2` by
+  industry; GDP = Σ B.1g at basic prices + D.21 − D.31. Includes FISIM
+  allocation and imputed rent for owner-occupied dwellings.
+- **Expenditure approach** (ch.9, ch.10, ch.14): the full identity, with
+  imports and subsidies supplied positive and subtracted in one place.
+- **Income approach** (ch.7): D.1 + B.2g + B.3g + D.2 − D.3.
+- **Reconciliation**: statistical discrepancy, configurable balancing anchor
+  (`production` default, `expenditure`, `income`, or `none` for no headline).
+  The engine never adjusts an estimate to make the approaches agree.
+- **Diagnostics** returned rather than thrown: FISIM allocations that do not
+  exhaust FISIM output, imputed rent missing from the expenditure side,
+  negative value added, pre-negated imports or subsidies, and approaches
+  diverging beyond a configurable threshold.
+- **Derived measures**: GDP per capita, growth rates (period-on-period and
+  year-on-year are the same arithmetic on differently chosen periods),
+  annualised rates, and growth contributions that sum to the aggregate rate.
+- **93 tests** (177 total, all green): identities, FISIM under both
+  treatments, imputed rent, valuation refusal, sign conventions, publication
+  rounding, scale from 1 to 1,200 industries, and algebraic invariants
+  (homogeneity, additivity, order-independence, antisymmetric discrepancies).
+
+### Caveat: internally consistent, not externally validated
+
+Neither planned fixture could be obtained — the network policy denies
+`unstats.un.org`, `dst.dk` and `ec.europa.eu` alike. **The 1,854 figure quoted
+in §4 was recalled, not verified, and is used nowhere.** Fixtures therefore
+declare `provenance`, everything shipped is `synthetic`, and a test refuses to
+let a fixture claim `official` provenance without per-figure citations.
+
+The synthetic fixtures establish that the three approaches agree exactly on
+consistent inputs (discrepancy exactly zero, not merely small), that the
+identities and sign conventions hold, that FISIM behaves as SNA 2008 requires
+under both treatments, and that results are invariant to industry count and
+ordering. They cannot establish that our reading of the standard matches a
+real publication. Until an official fixture passes, the engine is described as
+internally consistent, never as validated — and if it ever disagrees with
+published figures, the engine is wrong until proven otherwise.
+
+### Also outstanding: paragraph-level SNA citations
+
+Every function names its SNA 2008 chapter and states the identity it
+implements in full, but citations are chapter-level rather than
+paragraph-level: the code was written without the manual, and a pinpoint
+recalled from memory is exactly what a reader checking the text would catch.
+Pinning paragraphs is a review pass with the manual open — the same convention
+as `transaction_code.ref_verified` in the database.
+
+### Next: milestone 4 (data intake)
+
+CSV/XLSX upload with provenance, a column-mapping UI onto the classifications
+from milestone 2, validation rules (balance checks, sign conventions, coverage
+gaps) and staging before commit. First task of that milestone: load an
+official classification file and an official engine fixture if network access
+allows, closing out both caveats above.

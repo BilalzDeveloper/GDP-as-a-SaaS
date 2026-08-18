@@ -5,12 +5,18 @@ National Accounts (SNA 2008): National Statistical Offices and researchers
 upload source data, map it to standard classifications, and compute GDP by all
 three approaches with full audit trails and reproducible vintages.
 
-**Status: milestones 1–2 complete, pending a live deployment.** Auth,
-organizations, roles, the audit trail and Row-Level Security are in place, as
-is the reference-data layer — ISIC, CPC, COICOP, COFOG and the SNA
-institutional sectors, with a tenant mapping layer for national adaptations.
-84 tests run in CI, including an adversarial tenant-isolation suite. The
-calculation engine starts at milestone 3.
+**Status: milestones 1–3 complete, pending a live deployment.** Auth,
+organizations, roles, the audit trail and Row-Level Security; the
+reference-data layer (ISIC, CPC, COICOP, COFOG, SNA institutional sectors)
+with a tenant mapping layer; and the calculation engine — all three GDP
+approaches at current prices, pure and dependency-free. 177 tests run in CI.
+
+Two caveats worth knowing before relying on output: the classification seeds
+are transcribed rather than downloaded, and the engine is internally
+consistent but not yet validated against published national accounts. Both are
+marked in the data and documented — see
+[`docs/reference-data.md`](docs/reference-data.md) and
+[`docs/engine.md`](docs/engine.md).
 
 ## Documentation
 
@@ -22,6 +28,8 @@ calculation engine starts at milestone 3.
   architectural choices
 - [`docs/reference-data.md`](docs/reference-data.md) — classification
   provenance, loading the official UN files, the mapping layer
+- [`docs/engine.md`](docs/engine.md) — the calculation engine: identities,
+  conventions, methodological variants, and what validation remains
 - [`DEPLOYMENT.md`](DEPLOYMENT.md) — Supabase + Vercel setup (needs owner
   credentials)
 - [`CLAUDE.md`](CLAUDE.md) — the original project brief
@@ -36,8 +44,10 @@ src/lib/supabase/   auth clients (sessions only, never tenant data)
 supabase/migrations/  SQL migrations — the source of truth for the schema
 seeds/              reference data as CSV (classifications, codes, countries)
 scripts/            migrations, seeding, official-file loader, scale spike
+src/engine/         pure SNA 2008 calculation engine (no DB, no deps)
 tests/rls/          adversarial tenant-isolation suite
 tests/reference/    reference-data isolation and seed integrity
+tests/engine/       engine identities, invariants, fixtures and purity
 ```
 
 ## Tenant isolation
