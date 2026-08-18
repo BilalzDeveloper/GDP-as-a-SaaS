@@ -12,3 +12,7 @@ next-env.d.ts
 # local test database cluster
 .pgdata/
 coverage/
+
+# scratch files from debugging sessions
+*.tmp.mts
+*.tmp.mjs
