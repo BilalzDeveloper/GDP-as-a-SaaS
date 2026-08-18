@@ -1,0 +1,150 @@
+import Link from 'next/link';
+import { notFound, redirect } from 'next/navigation';
+import { sql } from 'drizzle-orm';
+import { withRls } from '@/db/rls';
+import { getVerifiedClaims } from '@/lib/supabase/server';
+import { createRun } from './actions';
+
+export const dynamic = 'force-dynamic';
+
+export default async function RunsPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const claims = await getVerifiedClaims();
+  if (!claims) redirect('/sign-in');
+  const { slug } = await params;
+  const { error } = await searchParams;
+
+  const data = await withRls(claims, {}, async (tx) => {
+    const orgs = (await tx.execute(
+      sql`select id, name, slug from organization where slug = ${slug}`,
+    )) as unknown as { id: string; name: string; slug: string }[];
+    if (orgs.length === 0) return null;
+    const runs = (await tx.execute(sql`
+      select r.id, r.name, r.status, r.anchor_approach, r.executed_at,
+             v.name as vintage_name, v.frozen_at
+        from compilation_run r
+        join data_vintage v on v.id = r.input_vintage_id
+       where r.org_id = ${orgs[0].id} order by r.created_at desc
+    `)) as unknown as {
+      id: string; name: string; status: string; anchor_approach: string;
+      executed_at: string | null; vintage_name: string; frozen_at: string | null;
+    }[];
+    const vintages = (await tx.execute(sql`
+      select v.id, v.name, v.frozen_at,
+             (select count(*)::int from observation o where o.vintage_id = v.id) as n
+        from data_vintage v where v.org_id = ${orgs[0].id} order by v.created_at desc
+    `)) as unknown as { id: string; name: string; frozen_at: string | null; n: number }[];
+    return { org: orgs[0], runs: [...runs], vintages: [...vintages] };
+  });
+
+  if (!data) notFound();
+
+  return (
+    <main>
+      <p>
+        <Link href={`/orgs/${data.org.slug}`}>← {data.org.name}</Link>
+      </p>
+      <h1>Compilation runs</h1>
+      {error && <p className="error">{error}</p>}
+
+      <h2>New run</h2>
+      {data.vintages.length === 0 ? (
+        <p className="muted">
+          No vintages yet. Commit source data first — a run reads the
+          observations a vintage holds.
+        </p>
+      ) : (
+        <form className="stack" action={createRun}>
+          <input type="hidden" name="slug" value={data.org.slug} />
+          <label>
+            Name
+            <input name="name" placeholder="e.g. 2024 Annual Estimates, first release" required />
+          </label>
+          <label>
+            Input vintage
+            <select name="vintageId" required defaultValue="">
+              <option value="" disabled>
+                — choose —
+              </option>
+              {data.vintages.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name} — {v.n} observation(s)
+                  {v.frozen_at ? ' (frozen)' : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Balancing anchor
+            <select name="anchor" defaultValue="production">
+              <option value="production">production</option>
+              <option value="expenditure">expenditure</option>
+              <option value="income">income</option>
+              <option value="none">none — publish no headline</option>
+            </select>
+          </label>
+          <label>
+            Frequency
+            <select name="frequency" defaultValue="annual">
+              <option value="annual">annual</option>
+              <option value="quarterly">quarterly</option>
+            </select>
+          </label>
+          <button type="submit">Create run</button>
+        </form>
+      )}
+      <p className="muted">
+        The anchor decides which approach is published as the headline. The
+        others are reported with their discrepancy — never adjusted to agree.
+      </p>
+
+      <h2>Runs</h2>
+      {data.runs.length === 0 ? (
+        <p className="muted">No runs yet.</p>
+      ) : (
+        <div className="card">
+          <table>
+            <thead>
+              <tr>
+                <th>Run</th>
+                <th>Vintage</th>
+                <th>Anchor</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.runs.map((r) => (
+                <tr key={r.id}>
+                  <td>
+                    <Link href={`/orgs/${data.org.slug}/runs/${r.id}`}>{r.name}</Link>
+                  </td>
+                  <td>
+                    {r.vintage_name}
+                    {r.frozen_at && <span className="muted"> (frozen)</span>}
+                  </td>
+                  <td>{r.anchor_approach}</td>
+                  <td className={r.status === 'failed' ? 'error' : undefined}>
+                    {r.status}
+                    {r.executed_at && (
+                      <>
+                        <br />
+                        <span className="muted">
+                          {new Date(r.executed_at).toISOString().slice(0, 16).replace('T', ' ')}
+                        </span>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </main>
+  );
+}

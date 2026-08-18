@@ -311,3 +311,35 @@ coordinates, mixed units within a series.
 **Alternatives:** blocking on warnings with an override (an override that is
 always used is just a slower commit button); making everything a warning (then
 a typo'd transaction code silently becomes a missing series).
+
+## D23 — Method versions are pinned through a SECURITY DEFINER RPC
+**Decision:** `public.pin_method_version(semver, git_sha, config)` is
+find-or-create; app roles hold `select` on `method_version` but no `insert`.
+**Why:** `method_version` is a shared, system-wide registry rather than tenant
+data, so granting tenants direct INSERT would let one pollute it for everyone.
+The RPC takes no tenant input beyond the config the engine itself produced.
+Found while wiring execution: the first attempt used a plain upsert with
+`DO UPDATE`, which tripped the immutability trigger on the *second* run to use
+a given method — the guard was right and the upsert was wrong. `DO NOTHING`
+plus a re-select is the correct shape, and it also handles the race where two
+runs pin the same method concurrently.
+**Alternatives:** granting INSERT with a permissive policy (shared registry,
+any tenant could write); making method_version tenant-scoped (the same engine
+build and config would be duplicated per tenant, and comparing two NSOs'
+methods — a plausible future need — would become impossible).
+
+## D24 — The assembler withholds an approach rather than compiling it short
+**Decision:** If a required component is missing from the observations, that
+approach produces no result and a diagnostic explains what was absent.
+Genuinely optional components (NPISH consumption, changes in inventories,
+valuables) are treated as zero, also with a diagnostic.
+**Why:** A GDP total assembled from an incomplete expenditure account is not
+"approximately right" — it is wrong by exactly the missing component, and it
+looks entirely plausible in a published table. Withholding it makes the gap
+visible; publishing it short makes the gap invisible. The optional set is
+narrow and each member is genuinely zero or genuinely folded elsewhere in
+real compilations.
+**Alternatives:** compiling with zeros for anything missing (silently
+understates GDP); refusing to execute the run at all when any approach is
+incomplete (a production-only compilation is a legitimate exercise, and
+milestone 5's own test fixture is one).

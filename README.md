@@ -11,7 +11,9 @@ reference-data layer (ISIC, CPC, COICOP, COFOG, SNA institutional sectors)
 with a tenant mapping layer; the calculation engine — all three GDP approaches
 at current prices, pure and dependency-free; and data intake — CSV/XLSX
 upload, column mapping, validation and staged commit into append-only
-vintages. 299 tests run in CI.
+vintages; and the compilation workflow — runs that pin their vintage and
+method version, execute the engine, report the discrepancy between approaches
+and drill down to source records. 334 tests run in CI.
 
 Two caveats worth knowing before relying on output: the classification seeds
 are transcribed rather than downloaded, and the engine is internally
@@ -34,6 +36,8 @@ marked in the data and documented — see
   conventions, methodological variants, and what validation remains
 - [`docs/data-intake.md`](docs/data-intake.md) — file formats, number
   conventions, the mapping model, every validation rule, staging and commit
+- [`docs/compilation.md`](docs/compilation.md) — runs, method pinning, what
+  the assembler refuses to guess, results and drill-down
 - [`DEPLOYMENT.md`](DEPLOYMENT.md) — Supabase + Vercel setup (needs owner
   credentials)
 - [`CLAUDE.md`](CLAUDE.md) — the original project brief
@@ -50,10 +54,12 @@ seeds/              reference data as CSV (classifications, codes, countries)
 scripts/            migrations, seeding, official-file loader, scale spike
 src/engine/         pure SNA 2008 calculation engine (no DB, no deps)
 src/intake/         upload parsing, column mapping, validation rules
+src/compile/        observation-to-engine assembler and run execution
 tests/rls/          adversarial tenant-isolation suite
 tests/reference/    reference-data isolation and seed integrity
 tests/engine/       engine identities, invariants, fixtures and purity
 tests/intake/       number parsing, xlsx/csv, validation rules, intake end-to-end
+tests/compile/      assembler, execution, reproducibility, drill-down
 ```
 
 ## Tenant isolation

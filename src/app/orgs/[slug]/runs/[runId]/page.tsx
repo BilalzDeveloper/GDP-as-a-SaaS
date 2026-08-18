@@ -1,0 +1,380 @@
+import Link from 'next/link';
+import { notFound, redirect } from 'next/navigation';
+import { sql } from 'drizzle-orm';
+import { withRls } from '@/db/rls';
+import { getVerifiedClaims } from '@/lib/supabase/server';
+import { runExecute } from '../actions';
+
+export const dynamic = 'force-dynamic';
+
+type ResultRow = {
+  period_label: string;
+  approach: string;
+  measure: string;
+  activity_code: string | null;
+  activity_name: string | null;
+  activity_item_id: string | null;
+  value: string | null;
+};
+
+type DiagnosticRow = {
+  period_label: string | null;
+  severity: string;
+  code: string;
+  message: string;
+  subject: string | null;
+};
+
+/** Contributing source records for one drilled-into industry and period. */
+type SourceRow = {
+  transaction_code: string;
+  value: string | null;
+  source_row_number: number | null;
+  raw: Record<string, string> | null;
+  original_filename: string | null;
+  sha256: string | null;
+};
+
+const fmt = (v: string | null) =>
+  v === null ? '—' : Number(v).toLocaleString('en-GB', { maximumFractionDigits: 2 });
+
+export default async function RunPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string; runId: string }>;
+  searchParams: Promise<{ error?: string; drill?: string; period?: string }>;
+}) {
+  const claims = await getVerifiedClaims();
+  if (!claims) redirect('/sign-in');
+  const { slug, runId } = await params;
+  const { error, drill, period } = await searchParams;
+
+  const data = await withRls(claims, {}, async (tx) => {
+    const orgs = (await tx.execute(
+      sql`select id, name, slug from organization where slug = ${slug}`,
+    )) as unknown as { id: string; name: string; slug: string }[];
+    if (orgs.length === 0) return null;
+
+    const runs = (await tx.execute(sql`
+      select r.id, r.name, r.status, r.anchor_approach, r.executed_at,
+             r.error_message, v.name as vintage_name, v.frozen_at,
+             mv.engine_semver, mv.config
+        from compilation_run r
+        join data_vintage v on v.id = r.input_vintage_id
+        left join method_version mv on mv.id = r.method_version_id
+       where r.id = ${runId}::uuid
+    `)) as unknown as {
+      id: string; name: string; status: string; anchor_approach: string;
+      executed_at: string | null; error_message: string | null;
+      vintage_name: string; frozen_at: string | null;
+      engine_semver: string | null; config: Record<string, unknown> | null;
+    }[];
+    if (runs.length === 0) return null;
+
+    const results = (await tx.execute(sql`
+      select p.label as period_label, cr.approach, cr.measure,
+             ci.code as activity_code, ci.name as activity_name,
+             cr.activity_item_id, cr.value
+        from compilation_result cr
+        join reference_period p on p.id = cr.period_id
+        left join classification_item ci on ci.id = cr.activity_item_id
+       where cr.run_id = ${runId}::uuid
+       order by p.start_date, cr.approach, ci.sort_order nulls first, cr.measure
+    `)) as unknown as ResultRow[];
+
+    const diagnostics = (await tx.execute(sql`
+      select p.label as period_label, d.severity, d.code, d.message, d.subject
+        from compilation_diagnostic d
+        left join reference_period p on p.id = d.period_id
+       where d.run_id = ${runId}::uuid
+       order by d.severity, d.id
+    `)) as unknown as DiagnosticRow[];
+
+    // Drill-down: from a per-industry aggregate back to the observations that
+    // produced it, the staging rows those came from, and the source file.
+    let sources: SourceRow[] = [];
+    if (drill && period) {
+      sources = [
+        ...((await tx.execute(sql`
+          select ts.transaction_code, o.value, sr.source_row_number, sr.raw,
+                 d.original_filename, d.sha256
+            from observation o
+            join time_series ts on ts.id = o.series_id
+            join reference_period p on p.id = o.period_id
+            left join staging_row sr on sr.id = o.staging_row_id
+            left join source_dataset d on d.id = o.source_dataset_id
+           where o.org_id = ${orgs[0].id}
+             and o.vintage_id = (select input_vintage_id from compilation_run
+                                  where id = ${runId}::uuid)
+             and ts.activity_item_id = ${drill}::uuid
+             and p.label = ${period}
+           order by ts.transaction_code
+        `)) as unknown as SourceRow[]),
+      ];
+    }
+
+    return {
+      org: orgs[0],
+      run: runs[0],
+      results: [...results],
+      diagnostics: [...diagnostics],
+      sources,
+    };
+  });
+
+  if (!data) notFound();
+  const { org, run, results, diagnostics, sources } = data;
+
+  const periods = [...new Set(results.map((r) => r.period_label))];
+  const value = (periodLabel: string, approach: string, measure: string) =>
+    results.find(
+      (r) =>
+        r.period_label === periodLabel &&
+        r.approach === approach &&
+        r.measure === measure &&
+        r.activity_item_id === null,
+    )?.value ?? null;
+
+  const drilledName = sources.length
+    ? results.find((r) => r.activity_item_id === drill)?.activity_name
+    : null;
+
+  return (
+    <main>
+      <p>
+        <Link href={`/orgs/${org.slug}/runs`}>← Compilation runs</Link>
+      </p>
+      <h1>{run.name}</h1>
+      <p className="muted">
+        Vintage: {run.vintage_name}
+        {run.frozen_at && ' (frozen)'} · Anchor: {run.anchor_approach} · Status:{' '}
+        {run.status}
+        {run.engine_semver && (
+          <>
+            <br />
+            Method pinned: engine {run.engine_semver}
+            {run.config ? ` · ${JSON.stringify(run.config)}` : ''}
+          </>
+        )}
+      </p>
+      {error && <p className="error">{error}</p>}
+      {run.error_message && <p className="error">{run.error_message}</p>}
+
+      <form action={runExecute} style={{ margin: '1rem 0' }}>
+        <input type="hidden" name="slug" value={org.slug} />
+        <input type="hidden" name="runId" value={run.id} />
+        <button type="submit">
+          {run.status === 'computed' ? 'Re-execute' : 'Execute'}
+        </button>
+      </form>
+
+      {results.length === 0 ? (
+        <p className="muted">
+          No results yet. Executing reads the observations in the run&apos;s
+          vintage and compiles every period they cover.
+        </p>
+      ) : (
+        <>
+          <h2>GDP by approach</h2>
+          <div className="card">
+            <table>
+              <thead>
+                <tr>
+                  <th>Period</th>
+                  <th>Production</th>
+                  <th>Expenditure</th>
+                  <th>Income</th>
+                  <th>Headline</th>
+                </tr>
+              </thead>
+              <tbody>
+                {periods.map((p) => (
+                  <tr key={p}>
+                    <td>{p}</td>
+                    <td>{fmt(value(p, 'production', 'gdp'))}</td>
+                    <td>{fmt(value(p, 'expenditure', 'gdp'))}</td>
+                    <td>{fmt(value(p, 'income', 'gdp'))}</td>
+                    <td>
+                      <strong>{fmt(value(p, 'summary', 'headline_gdp'))}</strong>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <h2>Statistical discrepancy</h2>
+          <div className="card">
+            <table>
+              <thead>
+                <tr>
+                  <th>Period</th>
+                  <th>Production</th>
+                  <th>Expenditure</th>
+                  <th>Income</th>
+                </tr>
+              </thead>
+              <tbody>
+                {periods.map((p) => (
+                  <tr key={p}>
+                    <td>{p}</td>
+                    {(['production', 'expenditure', 'income'] as const).map((a) => (
+                      <td key={a}>
+                        {fmt(value(p, 'summary', `statistical_discrepancy_${a}`))}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="muted">
+            Anchor minus the approach, so a positive figure means that approach
+            falls short of the headline. Discrepancies are reported, never
+            removed by adjusting an estimate.
+          </p>
+
+          <h2>Value added by industry</h2>
+          {periods.map((p) => {
+            const rows = results.filter(
+              (r) =>
+                r.period_label === p &&
+                r.measure === 'gross_value_added' &&
+                r.activity_item_id !== null,
+            );
+            if (rows.length === 0) return null;
+            return (
+              <div key={p}>
+                <h3>{p}</h3>
+                <div className="card">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Industry</th>
+                        <th>Output</th>
+                        <th>Intermediate</th>
+                        <th>Value added</th>
+                        <th />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((r) => {
+                        const other = (measure: string) =>
+                          results.find(
+                            (x) =>
+                              x.period_label === p &&
+                              x.measure === measure &&
+                              x.activity_item_id === r.activity_item_id,
+                          )?.value ?? null;
+                        return (
+                          <tr key={r.activity_item_id}>
+                            <td>
+                              {r.activity_code} {r.activity_name}
+                            </td>
+                            <td>{fmt(other('output'))}</td>
+                            <td>{fmt(other('intermediate_consumption'))}</td>
+                            <td>{fmt(r.value)}</td>
+                            <td>
+                              <Link
+                                href={`/orgs/${org.slug}/runs/${run.id}?drill=${r.activity_item_id}&period=${encodeURIComponent(p)}`}
+                              >
+                                sources
+                              </Link>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })}
+
+          {drill && period && (
+            <>
+              <h2>
+                Contributing source records — {drilledName ?? 'industry'}, {period}
+              </h2>
+              {sources.length === 0 ? (
+                <p className="muted">No source records found for that cell.</p>
+              ) : (
+                <div className="card">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Transaction</th>
+                        <th>Value</th>
+                        <th>Source file</th>
+                        <th>Row</th>
+                        <th>As uploaded</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sources.map((s, i) => (
+                        <tr key={i}>
+                          <td>{s.transaction_code}</td>
+                          <td>{fmt(s.value)}</td>
+                          <td>
+                            {s.original_filename ?? '—'}
+                            {s.sha256 && (
+                              <>
+                                <br />
+                                <span className="muted">{s.sha256.slice(0, 12)}…</span>
+                              </>
+                            )}
+                          </td>
+                          <td>{s.source_row_number ?? '—'}</td>
+                          <td>
+                            <span className="muted">
+                              {s.raw ? JSON.stringify(s.raw) : '—'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <p>
+                <Link href={`/orgs/${org.slug}/runs/${run.id}`}>Close drill-down</Link>
+              </p>
+            </>
+          )}
+        </>
+      )}
+
+      {diagnostics.length > 0 && (
+        <>
+          <h2>Diagnostics</h2>
+          <div className="card">
+            <table>
+              <thead>
+                <tr>
+                  <th>Period</th>
+                  <th>Severity</th>
+                  <th>Finding</th>
+                </tr>
+              </thead>
+              <tbody>
+                {diagnostics.map((d, i) => (
+                  <tr key={i}>
+                    <td>{d.period_label ?? '—'}</td>
+                    <td>{d.severity}</td>
+                    <td>
+                      <strong>{d.code}</strong>
+                      {d.subject && <span className="muted"> · {d.subject}</span>}
+                      <br />
+                      <span className="muted">{d.message}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </main>
+  );
+}

@@ -1,10 +1,10 @@
 # SNA-Compliant GDP Compilation SaaS — Planning Proposal
 
-Status: **approved 2026-08-18.** Milestones 1–4 are built — see
+Status: **approved 2026-08-18.** Milestones 1–5 are built — see
 [Milestone 1](#milestone-1--delivered), [Milestone 2](#milestone-2--delivered),
-[Milestone 3](#milestone-3--delivered) and
-[Milestone 4](#milestone-4--delivered) at the end of this document.
-Milestones 5–8 stand as planned below.
+[Milestone 3](#milestone-3--delivered), [Milestone 4](#milestone-4--delivered)
+and [Milestone 5](#milestone-5--delivered) at the end of this document.
+Milestones 6–8 stand as planned below.
 
 > **Correction to §4 below.** That section names the SNA 2008 numerical
 > example as the engine fixture and quotes its GDP as 1,854. That figure was
@@ -423,9 +423,59 @@ but not validated against published accounts. Both need network access to the
 UN and national sources, still denied here. The Vercel deployment also remains
 pending owner credentials.
 
-### Next: milestone 5 (compilation workflow)
+## Milestone 5 — delivered
 
-Create a run, attach source data, execute the engine over committed
-observations, view results, see the discrepancy between approaches, and drill
-from an aggregate down to the contributing source records — the last of which
-is already wired through staging.
+Migration `0004_compilation.sql` plus `src/compile/`.
+
+- **Runs** pin their input vintage at creation and their `method_version` —
+  engine semver, git SHA, full config — at execution. Those two plus the
+  stored observations make any figure re-computable (non-negotiable 1).
+  `method_version` rows are immutable; a trigger refuses updates and deletes.
+- **Status** moves `draft → computing → computed | failed`, so moving
+  execution to a background worker later is a change of caller, not of schema
+  (stack challenge 3: Vercel caps function time).
+- **The assembler** (`src/compile/assemble.ts`, pure, no database imports)
+  turns observations into engine inputs and **withholds an approach rather
+  than compiling it short** — see the correction below.
+- **Results** are stored long-format `(run, period, approach, measure,
+  activity)`, because breakdowns vary by country and a wide table would not
+  survive the first customer with a different one. Per-industry rows keep the
+  activity link the drill-down walks.
+- **The discrepancy is reported, never removed.** The anchor decides the
+  headline; every other approach is stored with its gap.
+- **Drill-down** from a per-industry aggregate to the observations, the
+  staging rows with their file line numbers, and the source file's SHA-256.
+- **35 new tests** (334 total, green): the assembler's refusals, end-to-end
+  upload → commit → compile, the reproducibility guarantee (re-execution and a
+  second run over the same frozen vintage both reproduce the figure exactly),
+  drill-down returning the real source rows, and isolation for the four new
+  tables including a two-route attempt to fabricate results in another
+  tenant's run.
+
+### The design correction worth reading
+
+**D24** — the assembler does not compile an approach whose required
+components are missing. A GDP total assembled from an incomplete expenditure
+account is not "approximately right": it is wrong by exactly the missing
+component and looks entirely plausible in a published table. Withholding it
+makes the gap visible. Genuinely optional components (NPISH consumption,
+changes in inventories, valuables) are treated as zero with a diagnostic,
+because each is genuinely zero or genuinely folded elsewhere in real
+compilations.
+
+**D23** — pinning a method version goes through a SECURITY DEFINER RPC. The
+first attempt used a plain upsert, which tripped the immutability trigger on
+the *second* run to use a given method: the guard was right, the upsert was
+wrong.
+
+### Still outstanding
+
+Unchanged: classification seeds are transcribed rather than downloaded, the
+engine is not validated against published accounts, and the Vercel deployment
+awaits owner credentials.
+
+### Next: milestone 6 (volume measures)
+
+Deflators, constant prices and chain-linking with the annual-overlap method —
+including the UI copy about non-additivity of chained volumes, which users
+will otherwise report as a bug.

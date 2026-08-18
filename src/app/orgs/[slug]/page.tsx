@@ -62,6 +62,8 @@ export default async function OrgPage({
         </Link>
         {' · '}
         <Link href={`/orgs/${org.slug}/data`}>Source data</Link>
+        {' · '}
+        <Link href={`/orgs/${org.slug}/runs`}>Compilation runs</Link>
       </p>
 
       <h2>Members</h2>
