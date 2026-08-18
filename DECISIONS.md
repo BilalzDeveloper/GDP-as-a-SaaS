@@ -263,3 +263,51 @@ misstate GDP in a way no test on our side would catch.
 **Alternatives:** accepting producers' prices and adjusting with the
 economy-wide D.21/D.31 totals (wrong whenever the product tax mix differs by
 industry, and invisible when it is wrong).
+
+## D20 — Uploaded files are stored in the database, with a 10 MB cap
+**Decision:** `source_dataset.file_bytes` holds the uploaded file, capped at
+10 MB, rather than an object store.
+**Why:** The plan (D1) assumed Supabase Storage, whose bucket policies would
+have to mirror our RLS policies. Storing the bytes as a column puts them under
+the policies that already exist and that the isolation suite already tests —
+`source_dataset` is covered by exactly the same cross-tenant assertions as
+every other tenant table. Given that milestone 1's risk analysis singled out
+"a storage bucket without policies" as a way tenant isolation fails quietly,
+using the mechanism we can actually verify here is the safer trade.
+**Trade-off:** free-tier Postgres storage is limited and large files in a
+database is not a long-term pattern. The migration path is deliberately open:
+`storage_path` semantics can be added alongside `file_bytes`, moving old rows
+lazily. Revisit when either the cap or the total becomes a real constraint.
+**Alternatives:** Supabase Storage now (correct destination, but bucket
+policies are untestable in this environment, so isolation would rest on
+review rather than a test); storing only the checksum and discarding the file
+(loses the ability to re-parse with a corrected mapping, which is a routine
+need).
+
+## D21 — Staging rows carry no foreign keys on source-supplied codes
+**Decision:** `staging_row.transaction_code` and `staging_row.unit_code` are
+plain text with no foreign key. The resolved `*_item_id` columns keep theirs
+and are simply left null when resolution fails.
+**Why:** Found by the intake test suite. Staging exists to hold rows that are
+WRONG so a compiler can be shown what is wrong with them; a foreign key makes
+it impossible to store `transaction code ZZ.9 is not an SNA code`, which is
+precisely the message the compiler needs. Validity lives in `is_valid` and
+`validation_issue`, and the foreign keys sit on `time_series` and
+`observation`, which only ever receive rows that passed validation.
+**Alternatives:** storing invalid codes only in the `raw` JSON (the resolved
+columns then lie by omission, and every query has to know which is which);
+rejecting invalid rows at parse time (defeats the purpose of a review step,
+and gives the compiler no list of what to fix).
+
+## D22 — Errors block a commit; warnings never do
+**Decision:** `canCommit` requires zero error-severity issues. Warnings and
+info are reported and ignored for gating.
+**Why:** Several findings are legitimately possible — negative value added in
+a bad year, a genuine order-of-magnitude change, a series that really does
+stop. A tool that blocks on those trains its users to bypass it, which is
+worse than not checking. Errors are reserved for things that would corrupt
+data outright: unresolvable codes, unparseable or ambiguous numbers, duplicate
+coordinates, mixed units within a series.
+**Alternatives:** blocking on warnings with an override (an override that is
+always used is just a slower commit button); making everything a warning (then
+a typo'd transaction code silently becomes a missing series).

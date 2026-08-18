@@ -1,9 +1,10 @@
 # SNA-Compliant GDP Compilation SaaS — Planning Proposal
 
-Status: **approved 2026-08-18.** Milestones 1–3 are built — see
-[Milestone 1](#milestone-1--delivered), [Milestone 2](#milestone-2--delivered)
-and [Milestone 3](#milestone-3--delivered) at the end of this document.
-Milestones 4–8 stand as planned below.
+Status: **approved 2026-08-18.** Milestones 1–4 are built — see
+[Milestone 1](#milestone-1--delivered), [Milestone 2](#milestone-2--delivered),
+[Milestone 3](#milestone-3--delivered) and
+[Milestone 4](#milestone-4--delivered) at the end of this document.
+Milestones 5–8 stand as planned below.
 
 > **Correction to §4 below.** That section names the SNA 2008 numerical
 > example as the engine fixture and quotes its GDP as 1,854. That figure was
@@ -364,10 +365,67 @@ recalled from memory is exactly what a reader checking the text would catch.
 Pinning paragraphs is a review pass with the manual open — the same convention
 as `transaction_code.ref_verified` in the database.
 
-### Next: milestone 4 (data intake)
+## Milestone 4 — delivered
 
-CSV/XLSX upload with provenance, a column-mapping UI onto the classifications
-from milestone 2, validation rules (balance checks, sign conventions, coverage
-gaps) and staging before commit. First task of that milestone: load an
-official classification file and an official engine fixture if network access
-allows, closing out both caveats above.
+Migration `0003_data_intake.sql` plus `src/intake/`. "Staging before commit"
+implies something to commit into, so the observation core lands here too:
+milestone 4 is getting data in correctly, milestone 5 computes from it.
+
+- **Upload**: `.csv`/`.tsv` and `.xlsx`/`.xlsm` up to 10 MB, stored with a
+  SHA-256 so any committed figure traces to the exact bytes. Identical bytes
+  cannot be uploaded twice to one organization. Legacy `.xls` is refused with
+  advice rather than an obscure failure.
+- **Parsing** treats spreadsheet cells as text rather than trusting Excel's
+  type inference, which is what turns ISIC `01` into `1` and a period label
+  into a date serial. Formula cells read their cached result; date cells come
+  back as ISO; rich text as plain text.
+- **Numbers**: grouping separators across locales, accounting negatives
+  `(1 234)`, and publication markers for missing data (`:`, `..`, `n/a`, `c`)
+  read as **missing, not zero**. `1,234` is *refused as ambiguous* — 1234 or
+  1.234 depending on locale, a factor of a thousand — unless the mapping
+  declares the separator.
+- **Mapping**: columns onto SNA coordinates, resolved against any
+  classification version, saved per organization so a recurring extract is
+  mapped once.
+- **Validation**: nine error rules that block a commit and four warning rules
+  that do not, including the balance check (P.2 above P.1), sign conventions
+  aligned with the engine, coverage gaps, and a magnitude-jump detector for
+  thousands/millions mismatches.
+- **Staging and commit**: nothing reaches `observation` without passing
+  through staging. Committing writes into an open vintage; frozen vintages
+  refuse inserts, updates and deletes at the database level, and can only have
+  `published` flipped thereafter.
+- **Drill-down** from observation → staging row → source dataset → file
+  checksum is in place, which milestone 5 needs.
+- **122 new tests** (299 total, green): number parsing including every
+  ambiguity case, real `.xlsx` workbooks built with exceljs rather than mocks,
+  each validation rule tested for what it catches *and* for staying quiet on
+  good data, isolation across all eight new tenant tables, viewer-cannot-write,
+  and the frozen-vintage guarantee from four angles.
+
+### Two design corrections found by the tests
+
+- **D21** — `staging_row` had foreign keys on the source-supplied code
+  columns, which made it impossible to stage a row whose code was wrong. That
+  is precisely the row a compiler needs to see. The foreign keys belong on
+  `time_series`/`observation`, which only receive rows that passed.
+- **D20** — uploaded files are stored in the database rather than object
+  storage, so they fall under the RLS policies the isolation suite already
+  tests. Milestone 1's risk analysis named "a storage bucket without policies"
+  as a way isolation fails quietly; using the mechanism verifiable here is the
+  safer trade, with the migration path left open.
+
+### Still outstanding
+
+The two milestone-3 caveats are unchanged: classification seeds are
+transcribed rather than downloaded, and the engine is internally consistent
+but not validated against published accounts. Both need network access to the
+UN and national sources, still denied here. The Vercel deployment also remains
+pending owner credentials.
+
+### Next: milestone 5 (compilation workflow)
+
+Create a run, attach source data, execute the engine over committed
+observations, view results, see the discrepancy between approaches, and drill
+from an aggregate down to the contributing source records — the last of which
+is already wired through staging.

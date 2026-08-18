@@ -5,11 +5,13 @@ National Accounts (SNA 2008): National Statistical Offices and researchers
 upload source data, map it to standard classifications, and compute GDP by all
 three approaches with full audit trails and reproducible vintages.
 
-**Status: milestones 1–3 complete, pending a live deployment.** Auth,
+**Status: milestones 1–4 complete, pending a live deployment.** Auth,
 organizations, roles, the audit trail and Row-Level Security; the
 reference-data layer (ISIC, CPC, COICOP, COFOG, SNA institutional sectors)
-with a tenant mapping layer; and the calculation engine — all three GDP
-approaches at current prices, pure and dependency-free. 177 tests run in CI.
+with a tenant mapping layer; the calculation engine — all three GDP approaches
+at current prices, pure and dependency-free; and data intake — CSV/XLSX
+upload, column mapping, validation and staged commit into append-only
+vintages. 299 tests run in CI.
 
 Two caveats worth knowing before relying on output: the classification seeds
 are transcribed rather than downloaded, and the engine is internally
@@ -30,6 +32,8 @@ marked in the data and documented — see
   provenance, loading the official UN files, the mapping layer
 - [`docs/engine.md`](docs/engine.md) — the calculation engine: identities,
   conventions, methodological variants, and what validation remains
+- [`docs/data-intake.md`](docs/data-intake.md) — file formats, number
+  conventions, the mapping model, every validation rule, staging and commit
 - [`DEPLOYMENT.md`](DEPLOYMENT.md) — Supabase + Vercel setup (needs owner
   credentials)
 - [`CLAUDE.md`](CLAUDE.md) — the original project brief
@@ -45,9 +49,11 @@ supabase/migrations/  SQL migrations — the source of truth for the schema
 seeds/              reference data as CSV (classifications, codes, countries)
 scripts/            migrations, seeding, official-file loader, scale spike
 src/engine/         pure SNA 2008 calculation engine (no DB, no deps)
+src/intake/         upload parsing, column mapping, validation rules
 tests/rls/          adversarial tenant-isolation suite
 tests/reference/    reference-data isolation and seed integrity
 tests/engine/       engine identities, invariants, fixtures and purity
+tests/intake/       number parsing, xlsx/csv, validation rules, intake end-to-end
 ```
 
 ## Tenant isolation
