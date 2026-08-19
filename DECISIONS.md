@@ -392,3 +392,63 @@ place the convention is written down, so changing it later has one site.
 intake/vintage/isolation apparatus for data with identical shape); a boolean
 flag on `time_series` (a second source of truth alongside the unit, free to
 disagree with it).
+
+## D28 — Workflow transitions are RPCs, and nobody reviews their own run
+**Decision:** `submit_run_for_review`, `review_run` and `publish_run` are
+SECURITY DEFINER functions carrying the role check, the state check and the
+vintage precondition. `review_run` refuses when `created_by = auth.uid()`.
+Reviews require a non-empty note.
+**Why:** An RLS policy can say who may write to a table; it cannot say that a
+run must be `computed` to be submitted, that approval must freeze the input
+vintage, or that the approver must not be the author. Putting those in the
+database rather than the UI means they hold for every path into the data.
+Separation of duties is the entire reason the `reviewer` role was reserved in
+milestone 1, and an NSO accountable to a parliament needs it enforced rather
+than assumed. The note requirement follows the same logic as `app.reason` on
+audited writes: an approval nobody explained is not auditable.
+**Alternatives:** enforcing in server actions only (a second path into the
+database — a future API, a script — silently skips it); a status column with
+a trigger-based state machine (workable, but the role and precondition checks
+still need somewhere to live, and a function keeps them beside the transition
+they guard).
+
+## D29 — Approval freezes the input vintage
+**Decision:** Approving a run sets `frozen_at` on its input vintage.
+Publication then requires a frozen vintage, which migration 0003's check
+constraint already demanded.
+**Why:** Non-negotiable 1. If observations could still move after approval,
+the approval would attest to figures that no longer exist. Freezing at
+approval means what was reviewed is what gets published, and a revision has
+to become a new vintage and a new run — which is how NSOs think about
+revisions anyway.
+**Alternatives:** freezing at publication (leaves a window where approved
+figures can change); freezing at submission (blocks the compiler from acting
+on "changes requested", which is the whole point of that decision).
+
+## D30 — Embargo governs release, not internal visibility
+**Decision:** Organization members can view and export an embargoed run;
+every export is stamped until the embargo lifts. SDMX-CSV gets a leading
+`#EMBARGOED` comment line, the Excel workbook a red `EMBARGOED` first sheet.
+**Why:** This implements PLAN.md open question 1, which assumed exactly this
+and asked for confirmation. Compilers need to work with pre-release figures —
+that is the job — so blocking members internally would make the product
+unusable during the period it matters most. The stamp is what stops an
+embargoed extract being circulated or loaded unnoticed; the CSV comment is
+deliberately not valid SDMX-CSV, so a strict parser rejects it rather than
+ingesting it silently.
+**Still an assumption:** if viewers should be blocked entirely before release,
+that is a one-line change in the export service. Flagged rather than settled.
+
+## D31 — SDMX-CSV conformance is unverified and labelled as such
+**Decision:** The exporter writes SDMX-CSV 2.0 as documented, and both the
+code and `docs/publication.md` state plainly that conformance has not been
+checked against an official validator.
+**Why:** No network access to reach the SDMX Global Registry's validator or a
+recipient's parser. The same rule as D12 (classification seeds) and D16
+(engine fixtures): shipping something labelled as a standard that has never
+been checked against the standard is how a product loses an NSO's trust. The
+caveat is cheap to remove — run one exported file through a validator — and
+expensive to have shipped silently.
+**Alternatives:** not exporting SDMX at all until it can be validated (the
+brief asks for it, and the shape is useful now); claiming conformance
+(indefensible).

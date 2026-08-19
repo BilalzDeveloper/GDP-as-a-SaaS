@@ -5,7 +5,7 @@ National Accounts (SNA 2008): National Statistical Offices and researchers
 upload source data, map it to standard classifications, and compute GDP by all
 three approaches with full audit trails and reproducible vintages.
 
-**Status: milestones 1–6 complete, pending a live deployment.** Auth,
+**Status: milestones 1–7 complete, pending a live deployment.** Auth,
 organizations, roles, the audit trail and Row-Level Security; the
 reference-data layer (ISIC, CPC, COICOP, COFOG, SNA institutional sectors)
 with a tenant mapping layer; the calculation engine — all three GDP approaches
@@ -14,14 +14,18 @@ upload, column mapping, validation and staged commit into append-only
 vintages; and the compilation workflow — runs that pin their vintage and
 method version, execute the engine, report the discrepancy between approaches
 and drill down to source records; and volume measures — deflation, index
-numbers and chain-linking by annual overlap. 378 tests run in CI.
+numbers and chain-linking by annual overlap; and review and publication —
+reviewer approval with separation of duties, vintage freezing, embargo, and
+SDMX-CSV and Excel export. 403 tests run in CI.
 
-Two caveats worth knowing before relying on output: the classification seeds
-are transcribed rather than downloaded, and the engine is internally
-consistent but not yet validated against published national accounts. Both are
-marked in the data and documented — see
-[`docs/reference-data.md`](docs/reference-data.md) and
-[`docs/engine.md`](docs/engine.md).
+Three caveats worth knowing before relying on output, each marked in the data
+or the code rather than only here: the classification seeds are transcribed
+rather than downloaded ([`docs/reference-data.md`](docs/reference-data.md)),
+the engine is internally consistent but not yet validated against published
+national accounts ([`docs/engine.md`](docs/engine.md)), and SDMX-CSV
+conformance has not been checked against an official validator
+([`docs/publication.md`](docs/publication.md)). All three need network access
+to close.
 
 ## Documentation
 
@@ -41,6 +45,8 @@ marked in the data and documented — see
   the assembler refuses to guess, results and drill-down
 - [`docs/volume-measures.md`](docs/volume-measures.md) — index formulas,
   chain-linking, and why chained volumes do not add up
+- [`docs/publication.md`](docs/publication.md) — the review workflow, who can
+  do what, embargo handling and the export formats
 - [`DEPLOYMENT.md`](DEPLOYMENT.md) — Supabase + Vercel setup (needs owner
   credentials)
 - [`CLAUDE.md`](CLAUDE.md) — the original project brief
@@ -58,11 +64,13 @@ scripts/            migrations, seeding, official-file loader, scale spike
 src/engine/         pure SNA 2008 calculation engine (no DB, no deps)
 src/intake/         upload parsing, column mapping, validation rules
 src/compile/        observation-to-engine assembler and run execution
+src/export/         SDMX-CSV and Excel exporters
 tests/rls/          adversarial tenant-isolation suite
 tests/reference/    reference-data isolation and seed integrity
 tests/engine/       engine identities, invariants, fixtures and purity
 tests/intake/       number parsing, xlsx/csv, validation rules, intake end-to-end
 tests/compile/      assembler, execution, reproducibility, drill-down
+tests/review/       review workflow, role gating, embargo, exports
 ```
 
 ## Tenant isolation

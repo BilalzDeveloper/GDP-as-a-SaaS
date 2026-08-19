@@ -3,7 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import { sql } from 'drizzle-orm';
 import { withRls } from '@/db/rls';
 import { getVerifiedClaims } from '@/lib/supabase/server';
-import { runExecute } from '../actions';
+import { publishRun, reviewRun, runExecute, submitForReview } from '../actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,7 +60,9 @@ export default async function RunPage({
     const runs = (await tx.execute(sql`
       select r.id, r.name, r.status, r.anchor_approach, r.executed_at,
              r.error_message, r.volume_reference_period_label,
-             r.volume_index_formula, v.name as vintage_name, v.frozen_at,
+             r.volume_index_formula, r.published_at, r.embargo_until,
+             r.created_by, v.name as vintage_name, v.frozen_at,
+             v.published as vintage_published, v.embargo_until as vintage_embargo,
              mv.engine_semver, mv.config
         from compilation_run r
         join data_vintage v on v.id = r.input_vintage_id
@@ -71,7 +73,10 @@ export default async function RunPage({
       executed_at: string | null; error_message: string | null;
       volume_reference_period_label: string | null;
       volume_index_formula: string | null;
+      published_at: string | null; embargo_until: string | null;
+      created_by: string | null;
       vintage_name: string; frozen_at: string | null;
+      vintage_published: boolean; vintage_embargo: string | null;
       engine_semver: string | null; config: Record<string, unknown> | null;
     }[];
     if (runs.length === 0) return null;
@@ -118,17 +123,43 @@ export default async function RunPage({
       ];
     }
 
+    const reviews = (await tx.execute(sql`
+      select rr.decision::text as decision, rr.note, rr.decided_at, u.email
+        from run_review rr
+        left join public.org_members(${orgs[0].id}::uuid) u on u.user_id = rr.reviewer_id
+       where rr.run_id = ${runId}::uuid
+       order by rr.decided_at desc
+    `)) as unknown as {
+      decision: string; note: string; decided_at: string; email: string | null;
+    }[];
+
+    const membership = (await tx.execute(sql`
+      select role::text as role from membership
+       where org_id = ${orgs[0].id} and user_id = ${claims.sub}::uuid
+    `)) as unknown as { role: string }[];
+
     return {
       org: orgs[0],
       run: runs[0],
       results: [...results],
       diagnostics: [...diagnostics],
       sources,
+      reviews: [...reviews],
+      role: membership[0]?.role ?? 'viewer',
     };
   });
 
   if (!data) notFound();
-  const { org, run, results, diagnostics, sources } = data;
+  const { org, run, results, diagnostics, sources, reviews, role } = data;
+
+  const canCompile = role === 'admin' || role === 'compiler';
+  const canReview = role === 'admin' || role === 'reviewer';
+  const isOwnWork = run.created_by === claims.sub;
+  const embargo = [run.embargo_until, run.vintage_embargo]
+    .filter((t): t is string => !!t)
+    .sort()
+    .pop();
+  const embargoActive = embargo ? new Date(embargo) > new Date() : false;
 
   const periods = [...new Set(results.map((r) => r.period_label))];
   const value = (periodLabel: string, approach: string, measure: string) =>
@@ -484,6 +515,138 @@ export default async function RunPage({
               </div>
             </>
           )}
+        </>
+      )}
+
+      <h2>Review and publication</h2>
+      {embargoActive && (
+        <div className="card">
+          <p className="error" style={{ margin: 0, fontWeight: 600 }}>
+            Embargoed until {new Date(embargo!).toISOString().replace('T', ' ').slice(0, 16)}
+          </p>
+          <p className="muted" style={{ marginBottom: 0 }}>
+            Members of this organization can see these figures — compiling them
+            is the job. The embargo governs release to anyone else, and every
+            export is stamped until it lifts.
+          </p>
+        </div>
+      )}
+
+      <div className="card">
+        <p style={{ marginTop: 0 }}>
+          Status: <strong>{run.status}</strong>
+          {run.frozen_at && (
+            <>
+              {' · '}vintage frozen{' '}
+              {new Date(run.frozen_at).toISOString().slice(0, 10)}
+            </>
+          )}
+          {run.published_at && (
+            <>
+              {' · '}published{' '}
+              {new Date(run.published_at).toISOString().slice(0, 10)}
+            </>
+          )}
+        </p>
+
+        {run.status === 'computed' && canCompile && (
+          <form action={submitForReview}>
+            <input type="hidden" name="slug" value={org.slug} />
+            <input type="hidden" name="runId" value={run.id} />
+            <button type="submit">Submit for review</button>
+          </form>
+        )}
+
+        {run.status === 'under_review' && canReview && !isOwnWork && (
+          <form className="stack" action={reviewRun}>
+            <input type="hidden" name="slug" value={org.slug} />
+            <input type="hidden" name="runId" value={run.id} />
+            <label>
+              Decision
+              <select name="decision" defaultValue="approved">
+                <option value="approved">Approve — freezes the input vintage</option>
+                <option value="changes_requested">Request changes</option>
+              </select>
+            </label>
+            <label>
+              Note (required)
+              <input name="note" required placeholder="What you checked, and what you concluded" />
+            </label>
+            <button type="submit">Record decision</button>
+          </form>
+        )}
+
+        {run.status === 'under_review' && canReview && isOwnWork && (
+          <p className="muted">
+            You created this run, so you cannot review it. Separation of duties
+            is the reason the reviewer role exists — ask another reviewer.
+          </p>
+        )}
+
+        {run.status === 'under_review' && !canReview && (
+          <p className="muted">Awaiting a reviewer.</p>
+        )}
+
+        {run.status === 'approved' && role === 'admin' && (
+          <form className="stack" action={publishRun}>
+            <input type="hidden" name="slug" value={org.slug} />
+            <input type="hidden" name="runId" value={run.id} />
+            <label>
+              Embargo until (optional)
+              <input type="datetime-local" name="embargoUntil" />
+            </label>
+            <button type="submit">Publish</button>
+          </form>
+        )}
+
+        {run.status === 'approved' && role !== 'admin' && (
+          <p className="muted">Approved. An admin can publish it.</p>
+        )}
+      </div>
+
+      {reviews.length > 0 && (
+        <div className="card">
+          <table>
+            <thead>
+              <tr>
+                <th>Decision</th>
+                <th>Reviewer</th>
+                <th>When</th>
+                <th>Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              {reviews.map((r, i) => (
+                <tr key={i}>
+                  <td className={r.decision === 'approved' ? undefined : 'error'}>
+                    {r.decision === 'approved' ? 'approved' : 'changes requested'}
+                  </td>
+                  <td>{r.email ?? 'unknown'}</td>
+                  <td>{new Date(r.decided_at).toISOString().slice(0, 10)}</td>
+                  <td>{r.note}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {results.length > 0 && (
+        <>
+          <h3>Export</h3>
+          <p>
+            <a href={`/orgs/${org.slug}/runs/${run.id}/export/sdmx-csv`}>
+              SDMX-CSV
+            </a>
+            {' · '}
+            <a href={`/orgs/${org.slug}/runs/${run.id}/export/xlsx`}>Excel</a>
+          </p>
+          <p className="muted">
+            Exports carry the run&apos;s provenance: input vintage, freeze time,
+            pinned engine version and method configuration, and the SHA-256 of
+            every source file behind the figures.
+            {embargoActive && ' Both formats are stamped EMBARGOED until the release time.'}
+          </p>
         </>
       )}
 

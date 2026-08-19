@@ -1,11 +1,11 @@
 # SNA-Compliant GDP Compilation SaaS — Planning Proposal
 
-Status: **approved 2026-08-18.** Milestones 1–6 are built — see the
+Status: **approved 2026-08-18.** Milestones 1–7 are built — see the
 "delivered" sections at the end of this document
 ([1](#milestone-1--delivered), [2](#milestone-2--delivered),
 [3](#milestone-3--delivered), [4](#milestone-4--delivered),
-[5](#milestone-5--delivered), [6](#milestone-6--delivered)).
-Milestones 7–8 stand as planned below.
+[5](#milestone-5--delivered), [6](#milestone-6--delivered),
+[7](#milestone-7--delivered)). Milestone 8 stands as planned below.
 
 > **Correction to §4 below.** That section names the SNA 2008 numerical
 > example as the engine fixture and quotes its GDP as 1,854. That figure was
@@ -523,8 +523,54 @@ The run page carries the explanation next to the residual column, not in a
 footnote — the brief predicted users would report this as a bug, and that copy
 is what stops the ticket being written.
 
-### Next: milestone 7 (review and publication)
+## Milestone 7 — delivered
 
-Reviewer approval, vintage freezing, embargo, and export to SDMX-CSV and
-Excel. The `reviewer` role and the frozen/published/embargo columns are
-already in place from milestones 1 and 4.
+Migration `0006_review_publication.sql`, `src/export/`, and the review panel
+on the run page.
+
+- **Workflow**: `computed → under_review → approved → published`, with
+  "changes requested" returning a run to `computed`. Every transition is a
+  SECURITY DEFINER RPC carrying its role check, state check and vintage
+  precondition (D28).
+- **Separation of duties**: nobody can review their own run — enforced in the
+  database, not the UI. The case that matters is an admin, who can both create
+  and review; a reviewer cannot create runs at all, which the RLS write policy
+  already handled. Both are tested.
+- **A review must carry a note.** An approval nobody explained is not
+  auditable, so the column is `not null` with a non-empty check.
+- **Approval freezes the input vintage** (D29), so what was reviewed is what
+  gets published. Publication then requires a frozen vintage, which a check
+  constraint has demanded since milestone 4.
+- **Embargo** implements PLAN open question 1: members can see and export
+  pre-release figures, and every export is stamped until release (D30).
+- **Exports**: SDMX-CSV and Excel, both carrying full provenance — input
+  vintage, freeze time, pinned engine version and method config, and the
+  SHA-256 of every source file. Both read through `withRls()`, so another
+  tenant's run does not exist rather than being forbidden.
+- **25 new tests** (403 total, green): every role gate, every illegal
+  transition, freeze-on-approval, embargo stamping, a real xlsx workbook
+  (checked by its zip magic, not its extension), and an attempt to insert a
+  review directly to bypass the role checks.
+
+### Caveat: SDMX-CSV conformance is unverified
+
+The exporter writes SDMX-CSV 2.0 as documented, but it has **not** been
+checked against an official SDMX validator or a recipient's parser — no
+network access to reach one. The code and `docs/publication.md` both say so.
+Same rule as the classification seeds and the engine fixtures: shipping
+something labelled as a standard that has never been checked against the
+standard is how a product loses an NSO's trust. One validated file removes the
+caveat.
+
+### An assumption now implemented, still worth confirming
+
+PLAN open question 1 assumed the embargo governs *release* rather than
+internal visibility. That is what is built. If viewers should be blocked
+entirely before release, it is a one-line change in the export service.
+
+### Next: milestone 8 (quarterly accounts and benchmarking)
+
+Quarterly compilation with Denton proportional benchmarking to annual totals.
+`period_frequency` already carries 'quarterly' throughout, and the
+fiscal-year-aware `reference_period` model has been in place since milestone
+4, so this is engine work plus a benchmarking step in the run.

@@ -11,6 +11,18 @@ function fail(path: string, message: string): never {
   redirect(`${path}?error=${encodeURIComponent(message)}`);
 }
 
+/**
+ * The workflow RPCs raise messages written for the person reading them
+ * ("only reviewers and admins can review a run"), so surface those rather
+ * than replacing them with something vaguer.
+ */
+function dbError(e: unknown, fallback: string): string {
+  const message = e instanceof Error ? e.message : String(e);
+  if (message === 'NEXT_REDIRECT') throw e;
+  const cause = (e as { cause?: { message?: string } })?.cause?.message;
+  return cause ?? fallback;
+}
+
 async function orgFor(slug: string) {
   const claims = await getVerifiedClaims();
   if (!claims) redirect('/sign-in');
@@ -83,6 +95,74 @@ export async function runExecute(formData: FormData) {
     const message = e instanceof Error ? e.message : String(e);
     if (message === 'NEXT_REDIRECT') throw e;
     fail(path, e instanceof ExecutionError ? e.message : 'Execution failed.');
+  }
+  revalidatePath(path);
+  redirect(path);
+}
+
+export async function submitForReview(formData: FormData) {
+  const slug = String(formData.get('slug') ?? '');
+  const runId = String(formData.get('runId') ?? '');
+  const path = `/orgs/${slug}/runs/${runId}`;
+  const { claims } = await orgFor(slug);
+
+  try {
+    await withRls(claims, { reason: `submit run ${runId} for review` }, (tx) =>
+      tx.execute(sql`select public.submit_run_for_review(${runId}::uuid)`),
+    );
+  } catch (e) {
+    fail(path, dbError(e, 'The run could not be submitted for review.'));
+  }
+  revalidatePath(path);
+  redirect(path);
+}
+
+export async function reviewRun(formData: FormData) {
+  const slug = String(formData.get('slug') ?? '');
+  const runId = String(formData.get('runId') ?? '');
+  const path = `/orgs/${slug}/runs/${runId}`;
+  const { claims } = await orgFor(slug);
+
+  const decision = String(formData.get('decision') ?? '');
+  const note = String(formData.get('note') ?? '').trim();
+  if (!['approved', 'changes_requested'].includes(decision)) {
+    fail(path, 'Choose approve or request changes.');
+  }
+  if (!note) fail(path, 'A review must record a note saying why.');
+
+  try {
+    await withRls(claims, { reason: `review run ${runId}: ${decision}` }, (tx) =>
+      tx.execute(
+        sql`select public.review_run(${runId}::uuid, ${decision}::review_decision, ${note})`,
+      ),
+    );
+  } catch (e) {
+    fail(path, dbError(e, 'The review could not be recorded.'));
+  }
+  revalidatePath(path);
+  redirect(path);
+}
+
+export async function publishRun(formData: FormData) {
+  const slug = String(formData.get('slug') ?? '');
+  const runId = String(formData.get('runId') ?? '');
+  const path = `/orgs/${slug}/runs/${runId}`;
+  const { claims } = await orgFor(slug);
+
+  const embargoRaw = String(formData.get('embargoUntil') ?? '').trim();
+  const embargo = embargoRaw ? new Date(embargoRaw) : null;
+  if (embargoRaw && Number.isNaN(embargo?.getTime())) {
+    fail(path, 'That embargo time could not be read.');
+  }
+
+  try {
+    await withRls(claims, { reason: `publish run ${runId}` }, (tx) =>
+      tx.execute(
+        sql`select public.publish_run(${runId}::uuid, ${embargo ? embargo.toISOString() : null}::timestamptz)`,
+      ),
+    );
+  } catch (e) {
+    fail(path, dbError(e, 'The run could not be published.'));
   }
   revalidatePath(path);
   redirect(path);
