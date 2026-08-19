@@ -343,3 +343,52 @@ real compilations.
 understates GDP); refusing to execute the run at all when any approach is
 incomplete (a production-only compilation is a legitimate exercise, and
 milestone 5's own test fixture is one).
+
+## D25 — Chain-linking uses the annual overlap method
+**Decision:** `chainLink` and `chainLinkAggregate` implement annual overlap:
+each period is revalued at the previous period's prices and the resulting
+year-on-year links are compounded.
+**Why:** SNA 2008 ch.15 permits several linking variants; annual overlap is
+the one used by most European compilers, including Statistics Denmark (the
+intended real-world fixture). The alternatives — one-quarter overlap and
+over-the-year linking — differ only for sub-annual data, where they trade a
+step in the quarterly path against exact consistency with annual totals. For
+annual data all three coincide, so nothing is foreclosed by choosing this one
+now; the quarterly milestone can add the others if a customer needs them.
+**Alternatives:** one-quarter overlap (no step in the quarterly path, but
+quarterly volumes then need not sum to the annual figure); over-the-year
+linking (consistent annually, larger steps between years).
+
+## D26 — Chained volumes are published non-additive, with the residual shown
+**Decision:** `nonAdditivityResidual()` computes aggregate − Σ components, the
+figure is stored as a result, and the run page explains it in place.
+**Why:** Chain-linked components genuinely do not sum to their chain-linked
+aggregate away from the reference period, because each series carries its own
+price weights. Forcing additivity would require changing each industry's
+published volume to preserve an arithmetic property the measure does not have.
+Publishing the residual is standard NSO practice. The brief anticipated this
+exactly — "users will report it as a bug" — so the explanation is UI copy on
+the results page, not a footnote in the docs.
+**Worth recording:** the residual is zero in the reference period *and* the
+period immediately after it, because the first link values every component at
+the same reference-year prices. Divergence starts with the second link. An
+earlier version of the test asserted non-additivity from the first period on
+and failed — correctly.
+**Alternatives:** forcing additivity by scaling components (misstates every
+component); publishing only the aggregate (loses the industry detail that is
+half the product); leaving the residual uncomputed (the user sees the gap and
+has no way to tell whether it is expected).
+
+## D27 — Deflators are index-valued observations, not a separate table
+**Decision:** A deflator is an observation on a series whose unit has
+`unit_type = 'index'`, sharing the transaction code and dimensions of the
+series it deflates. Exposed as the `deflator_series` view.
+**Why:** The unit registry already distinguishes an index from a currency
+amount, so this needs no new intake path, no new validation and no new
+vintage semantics — deflators upload, validate and freeze exactly like any
+other data, and inherit the same audit trail and RLS. The view is the single
+place the convention is written down, so changing it later has one site.
+**Alternatives:** a dedicated `deflator` table (duplicates the whole
+intake/vintage/isolation apparatus for data with identical shape); a boolean
+flag on `time_series` (a second source of truth alongside the unit, free to
+disagree with it).

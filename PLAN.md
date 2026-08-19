@@ -1,10 +1,11 @@
 # SNA-Compliant GDP Compilation SaaS — Planning Proposal
 
-Status: **approved 2026-08-18.** Milestones 1–5 are built — see
-[Milestone 1](#milestone-1--delivered), [Milestone 2](#milestone-2--delivered),
-[Milestone 3](#milestone-3--delivered), [Milestone 4](#milestone-4--delivered)
-and [Milestone 5](#milestone-5--delivered) at the end of this document.
-Milestones 6–8 stand as planned below.
+Status: **approved 2026-08-18.** Milestones 1–6 are built — see the
+"delivered" sections at the end of this document
+([1](#milestone-1--delivered), [2](#milestone-2--delivered),
+[3](#milestone-3--delivered), [4](#milestone-4--delivered),
+[5](#milestone-5--delivered), [6](#milestone-6--delivered)).
+Milestones 7–8 stand as planned below.
 
 > **Correction to §4 below.** That section names the SNA 2008 numerical
 > example as the engine fixture and quotes its GDP as 1,854. That figure was
@@ -474,8 +475,56 @@ Unchanged: classification seeds are transcribed rather than downloaded, the
 engine is not validated against published accounts, and the Vercel deployment
 awaits owner credentials.
 
-### Next: milestone 6 (volume measures)
+## Milestone 6 — delivered
 
-Deflators, constant prices and chain-linking with the annual-overlap method —
-including the UI copy about non-additivity of chained volumes, which users
-will otherwise report as a bug.
+`src/engine/volume.ts` (pure) plus migration `0005_volume_measures.sql` and
+`src/compile/volumes.ts`.
+
+- **Index formulas**: Laspeyres, Paasche and Fisher, for both price and volume
+  indices, selectable per run.
+- **Deflation** from price indices, and each period revalued at the previous
+  period's prices — the building block of chaining.
+- **Chain-linking by annual overlap**, with the aggregate linked *from its
+  components* rather than from an aggregate deflator. That distinction is the
+  whole reason chained volumes behave the way they do.
+- **Non-additivity computed, stored and explained**, per the brief's warning.
+- **Deflators are ordinary index-valued observations** (D27) — no separate
+  intake path, same validation, same vintage, same isolation.
+- **44 new tests** (378 total, green).
+
+### Index-number properties as the correctness check
+
+Worked examples test one input; algebraic properties must hold for every
+input, so the suite pins those down:
+
+- Fisher satisfies **factor reversal** — price × volume = the change in value,
+  exactly. The crosses hold too: Laspeyres price × Paasche volume, and
+  Paasche price × Laspeyres volume.
+- Fisher satisfies **time reversal**; the suite asserts that Laspeyres does
+  **not**, so nobody "fixes" it later.
+- An item present in only one period is excluded from a bilateral index rather
+  than treated as a zero.
+
+### The non-additivity property, precisely
+
+Two attempts at the test were wrong before it was right, which is worth
+recording. Chained components are additive in the reference period **and the
+period immediately after it** — the first link values every component at the
+same reference-year prices — and diverge from the second link onward. An
+earlier assertion of non-additivity from the first period failed, correctly.
+
+A second earlier version failed to show non-additivity at all, because it gave
+every series a common fixed-base deflator. That collapses chaining to
+fixed-base deflation, which *is* additive. The suite now keeps that case as a
+deliberate contrast: it is the same fact seen from the other side, and it is
+why fixed-base constant prices add up and chained ones do not.
+
+The run page carries the explanation next to the residual column, not in a
+footnote — the brief predicted users would report this as a bug, and that copy
+is what stops the ticket being written.
+
+### Next: milestone 7 (review and publication)
+
+Reviewer approval, vintage freezing, embargo, and export to SDMX-CSV and
+Excel. The `reviewer` role and the frozen/published/embargo columns are
+already in place from milestones 1 and 4.

@@ -5,15 +5,16 @@ National Accounts (SNA 2008): National Statistical Offices and researchers
 upload source data, map it to standard classifications, and compute GDP by all
 three approaches with full audit trails and reproducible vintages.
 
-**Status: milestones 1–4 complete, pending a live deployment.** Auth,
+**Status: milestones 1–6 complete, pending a live deployment.** Auth,
 organizations, roles, the audit trail and Row-Level Security; the
 reference-data layer (ISIC, CPC, COICOP, COFOG, SNA institutional sectors)
 with a tenant mapping layer; the calculation engine — all three GDP approaches
-at current prices, pure and dependency-free; and data intake — CSV/XLSX
+at current prices, pure and dependency-free; data intake — CSV/XLSX
 upload, column mapping, validation and staged commit into append-only
 vintages; and the compilation workflow — runs that pin their vintage and
 method version, execute the engine, report the discrepancy between approaches
-and drill down to source records. 334 tests run in CI.
+and drill down to source records; and volume measures — deflation, index
+numbers and chain-linking by annual overlap. 378 tests run in CI.
 
 Two caveats worth knowing before relying on output: the classification seeds
 are transcribed rather than downloaded, and the engine is internally
@@ -38,6 +39,8 @@ marked in the data and documented — see
   conventions, the mapping model, every validation rule, staging and commit
 - [`docs/compilation.md`](docs/compilation.md) — runs, method pinning, what
   the assembler refuses to guess, results and drill-down
+- [`docs/volume-measures.md`](docs/volume-measures.md) — index formulas,
+  chain-linking, and why chained volumes do not add up
 - [`DEPLOYMENT.md`](DEPLOYMENT.md) — Supabase + Vercel setup (needs owner
   credentials)
 - [`CLAUDE.md`](CLAUDE.md) — the original project brief

@@ -33,8 +33,13 @@ export async function createRun(formData: FormData) {
   const vintageId = String(formData.get('vintageId') ?? '');
   const anchor = String(formData.get('anchor') ?? 'production');
   const frequency = String(formData.get('frequency') ?? 'annual');
+  const volumeReference = String(formData.get('volumeReference') ?? '').trim();
+  const volumeFormula = String(formData.get('volumeFormula') ?? '').trim();
   if (!name) fail(path, 'Name the run.');
   if (!vintageId) fail(path, 'Choose the vintage this run reads.');
+  if (volumeFormula && !['laspeyres', 'paasche', 'fisher'].includes(volumeFormula)) {
+    fail(path, 'Unknown index formula.');
+  }
 
   try {
     const runId = await withRls(
@@ -43,9 +48,12 @@ export async function createRun(formData: FormData) {
       async (tx) => {
         const rows = (await tx.execute(sql`
           insert into compilation_run
-            (org_id, name, frequency, input_vintage_id, anchor_approach, created_by)
+            (org_id, name, frequency, input_vintage_id, anchor_approach,
+             volume_reference_period_label, volume_index_formula, created_by)
           values (${org.id}::uuid, ${name}, ${frequency}::period_frequency,
-                  ${vintageId}::uuid, ${anchor}, ${claims.sub}::uuid)
+                  ${vintageId}::uuid, ${anchor},
+                  ${volumeReference || null}, ${volumeFormula || null},
+                  ${claims.sub}::uuid)
           returning id
         `)) as unknown as { id: string }[];
         return rows[0].id;

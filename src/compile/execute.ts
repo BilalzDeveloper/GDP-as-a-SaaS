@@ -10,6 +10,7 @@ import { withRls, type RlsClaims, type Tx } from '@/db/rls';
 import { compileGdp, ENGINE_VERSION, type BalancingAnchor } from '@/engine';
 import { assembleRun, type ObservationRow } from './assemble';
 import { MEASURE } from './measures';
+import { computeVolumes, VolumeError } from './volumes';
 
 export class ExecutionError extends Error {}
 
@@ -86,6 +87,12 @@ export interface ExecutionSummary {
   resultsWritten: number;
   diagnostics: number;
   problems: number;
+  /** Null when volumes were not requested, or no deflators were available. */
+  volumes: {
+    seriesLinked: number;
+    maxResidualPercent: number;
+    referencePeriodLabel: string;
+  } | null;
 }
 
 /**
@@ -101,13 +108,15 @@ export async function executeRun(
 ): Promise<ExecutionSummary> {
   const run = await withRls(claims, {}, async (tx) => {
     const rows = (await tx.execute(sql`
-      select id, input_vintage_id, anchor_approach, status
+      select id, input_vintage_id, anchor_approach, status,
+             volume_reference_period_label
         from compilation_run where id = ${runId}::uuid
     `)) as unknown as {
       id: string;
       input_vintage_id: string;
       anchor_approach: BalancingAnchor;
       status: string;
+      volume_reference_period_label: string | null;
     }[];
     return rows[0];
   });
@@ -153,13 +162,17 @@ export async function executeRun(
           value: number | null,
           activityItemId: string | null = null,
         ) => {
+          // price_basis is part of a result's identity (migration 0005), so it
+          // belongs in the conflict target as well as the row.
           await tx.execute(sql`
             insert into compilation_result
-              (org_id, run_id, period_id, approach, measure, activity_item_id, value)
+              (org_id, run_id, period_id, approach, measure, activity_item_id,
+               price_basis, value)
             values (${orgId}::uuid, ${runId}::uuid, ${periodId}::uuid,
                     ${approach}::compilation_approach, ${measure},
-                    ${activityItemId}::uuid, ${value})
-            on conflict (run_id, period_id, approach, measure, activity_item_id)
+                    ${activityItemId}::uuid, 'current'::price_basis, ${value})
+            on conflict (run_id, period_id, approach, measure, activity_item_id,
+                         price_basis)
             do update set value = excluded.value
           `);
           resultsWritten++;
@@ -290,6 +303,37 @@ export async function executeRun(
           }
         }
 
+        // Volume measures, when the run asked for them and deflators exist.
+        let volumes: ExecutionSummary['volumes'] = null;
+        if (run.volume_reference_period_label) {
+          try {
+            const summary = await computeVolumes(
+              tx, orgId, runId, run.input_vintage_id,
+              run.volume_reference_period_label,
+            );
+            if (summary) {
+              volumes = {
+                seriesLinked: summary.seriesLinked,
+                maxResidualPercent: summary.maxResidualPercent,
+                referencePeriodLabel: summary.referencePeriodLabel,
+              };
+            } else {
+              await writeDiagnostic(
+                null, 'info', 'no_deflators',
+                'Volume measures were requested but no usable deflators were ' +
+                  'found in this vintage. A deflator is an observation on an ' +
+                  'index-valued series sharing the dimensions of the series it ' +
+                  'deflates.',
+                'volumes',
+              );
+            }
+          } catch (e) {
+            if (e instanceof VolumeError) {
+              await writeDiagnostic(null, 'warning', 'volume_error', e.message, 'volumes');
+            } else throw e;
+          }
+        }
+
         await tx.execute(sql`
           update compilation_run
              set status = 'computed',
@@ -304,6 +348,7 @@ export async function executeRun(
           resultsWritten,
           diagnostics: diagnosticCount,
           problems: problemCount,
+          volumes,
         };
       },
     );

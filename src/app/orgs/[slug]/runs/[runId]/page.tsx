@@ -11,6 +11,7 @@ type ResultRow = {
   period_label: string;
   approach: string;
   measure: string;
+  price_basis: string;
   activity_code: string | null;
   activity_name: string | null;
   activity_item_id: string | null;
@@ -58,7 +59,8 @@ export default async function RunPage({
 
     const runs = (await tx.execute(sql`
       select r.id, r.name, r.status, r.anchor_approach, r.executed_at,
-             r.error_message, v.name as vintage_name, v.frozen_at,
+             r.error_message, r.volume_reference_period_label,
+             r.volume_index_formula, v.name as vintage_name, v.frozen_at,
              mv.engine_semver, mv.config
         from compilation_run r
         join data_vintage v on v.id = r.input_vintage_id
@@ -67,13 +69,15 @@ export default async function RunPage({
     `)) as unknown as {
       id: string; name: string; status: string; anchor_approach: string;
       executed_at: string | null; error_message: string | null;
+      volume_reference_period_label: string | null;
+      volume_index_formula: string | null;
       vintage_name: string; frozen_at: string | null;
       engine_semver: string | null; config: Record<string, unknown> | null;
     }[];
     if (runs.length === 0) return null;
 
     const results = (await tx.execute(sql`
-      select p.label as period_label, cr.approach, cr.measure,
+      select p.label as period_label, cr.approach, cr.measure, cr.price_basis,
              ci.code as activity_code, ci.name as activity_name,
              cr.activity_item_id, cr.value
         from compilation_result cr
@@ -133,8 +137,32 @@ export default async function RunPage({
         r.period_label === periodLabel &&
         r.approach === approach &&
         r.measure === measure &&
+        r.price_basis === 'current' &&
         r.activity_item_id === null,
     )?.value ?? null;
+
+  /** Chain-linked figures, which live under price_basis 'chain_linked'. */
+  const volume = (
+    periodLabel: string,
+    measure: string,
+    activityItemId: string | null = null,
+  ) =>
+    results.find(
+      (r) =>
+        r.period_label === periodLabel &&
+        r.measure === measure &&
+        r.price_basis === 'chain_linked' &&
+        r.activity_item_id === activityItemId,
+    )?.value ?? null;
+
+  const hasVolumes = results.some((r) => r.price_basis === 'chain_linked');
+  const volumeIndustries = results.filter(
+    (r) =>
+      r.price_basis === 'chain_linked' &&
+      r.measure === 'chain_linked_value' &&
+      r.activity_item_id !== null &&
+      r.period_label === periods[0],
+  );
 
   const drilledName = sources.length
     ? results.find((r) => r.activity_item_id === drill)?.activity_name
@@ -241,6 +269,7 @@ export default async function RunPage({
               (r) =>
                 r.period_label === p &&
                 r.measure === 'gross_value_added' &&
+                r.price_basis === 'current' &&
                 r.activity_item_id !== null,
             );
             if (rows.length === 0) return null;
@@ -265,6 +294,7 @@ export default async function RunPage({
                             (x) =>
                               x.period_label === p &&
                               x.measure === measure &&
+                              x.price_basis === 'current' &&
                               x.activity_item_id === r.activity_item_id,
                           )?.value ?? null;
                         return (
@@ -340,6 +370,118 @@ export default async function RunPage({
               <p>
                 <Link href={`/orgs/${org.slug}/runs/${run.id}`}>Close drill-down</Link>
               </p>
+            </>
+          )}
+        </>
+      )}
+
+      {hasVolumes && (
+        <>
+          <h2>Chain-linked volume measures</h2>
+          <p className="muted">
+            Reference period {run.volume_reference_period_label}
+            {run.volume_index_formula && <> · {run.volume_index_formula} index</>}
+            . Volumes are expressed in that period&apos;s price level, and the
+            chain index is 100 there.
+          </p>
+          <div className="card">
+            <table>
+              <thead>
+                <tr>
+                  <th>Period</th>
+                  <th>Chain index</th>
+                  <th>Volume</th>
+                  <th>Growth %</th>
+                  <th>Sum of industries</th>
+                  <th>Residual</th>
+                </tr>
+              </thead>
+              <tbody>
+                {periods.map((p) => {
+                  const aggregate = volume(p, 'chain_linked_value');
+                  const residual = volume(p, 'non_additivity_residual');
+                  const componentSum =
+                    aggregate !== null && residual !== null
+                      ? String(Number(aggregate) - Number(residual))
+                      : null;
+                  return (
+                    <tr key={p}>
+                      <td>{p}</td>
+                      <td>{fmt(volume(p, 'chain_index'))}</td>
+                      <td>{fmt(aggregate)}</td>
+                      <td>{fmt(volume(p, 'volume_growth_percent'))}</td>
+                      <td>{fmt(componentSum)}</td>
+                      <td>{fmt(residual)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/*
+            The brief is explicit that users report non-additivity as a bug.
+            This is the message that stops the support ticket being written.
+          */}
+          <div className="card">
+            <h3 style={{ marginTop: 0 }}>
+              Why the industries do not add up to the total
+            </h3>
+            <p>
+              The <strong>Residual</strong> column above is not an error and not
+              a rounding artefact. Chain-linked volumes are <em>not additive</em>
+              , and cannot be made additive without misstating the components.
+            </p>
+            <p className="muted">
+              Each series is revalued at its own previous period&apos;s prices
+              before being linked, so every series carries a different set of
+              price weights. Adding series with different weights does not give
+              the aggregate, which carries the weights of the whole economy. The
+              parts do add up in the reference period, and in the period
+              immediately after it, and then diverge — which is why the residual
+              starts at zero and grows.
+            </p>
+            <p className="muted">
+              SNA 2008 chapter 15 treats this as a property of the measure, and
+              publishing the residual is standard practice among national
+              statistical offices. The alternative — forcing the components to
+              sum — would change each industry&apos;s published volume to
+              preserve an arithmetic property the measure does not have.
+              Current-price figures, shown above, <em>are</em> additive.
+            </p>
+          </div>
+
+          {volumeIndustries.length > 0 && (
+            <>
+              <h3>Volume by industry</h3>
+              <div className="card">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Industry</th>
+                      {periods.map((p) => (
+                        <th key={p}>{p}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {volumeIndustries.map((industry) => (
+                      <tr key={industry.activity_item_id}>
+                        <td>
+                          {industry.activity_code} {industry.activity_name}
+                        </td>
+                        {periods.map((p) => (
+                          <td key={p}>
+                            {fmt(
+                              volume(p, 'chain_linked_value', industry.activity_item_id),
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </>
           )}
         </>

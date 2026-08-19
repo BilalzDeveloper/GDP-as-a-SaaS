@@ -95,12 +95,30 @@ export default async function RunsPage({
               <option value="quarterly">quarterly</option>
             </select>
           </label>
+          <label>
+            Volume reference period (optional)
+            <input name="volumeReference" placeholder="e.g. 2021" />
+          </label>
+          <label>
+            Index formula
+            <select name="volumeFormula" defaultValue="">
+              <option value="">— current prices only —</option>
+              <option value="laspeyres">Laspeyres</option>
+              <option value="paasche">Paasche</option>
+              <option value="fisher">Fisher</option>
+            </select>
+          </label>
           <button type="submit">Create run</button>
         </form>
       )}
       <p className="muted">
         The anchor decides which approach is published as the headline. The
         others are reported with their discrepancy — never adjusted to agree.
+        <br />
+        Naming a volume reference period chain-links the results to that
+        period&apos;s price level. It needs deflators in the vintage: an
+        observation on an index-valued series sharing the dimensions of the
+        series it deflates.
       </p>
 
       <h2>Runs</h2>
