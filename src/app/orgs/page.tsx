@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { withRls, schema } from '@/db/rls';
 import { getVerifiedClaims } from '@/lib/supabase/server';
-import { signOut } from '../(auth)/actions';
+import { IdentityBar, Panel } from '@/components/shell';
 import { createOrg } from './actions';
 
 export const dynamic = 'force-dynamic';
@@ -30,34 +30,43 @@ export default async function OrgsPage({
 
   return (
     <>
-      <header className="site">
-        <strong>GDP Compilation Platform</strong>
-        <span>
-          <span className="muted">{claims.email}</span>{' '}
-          <form action={signOut} style={{ display: 'inline' }}>
-            <button className="link" type="submit">
-              Sign out
-            </button>
-          </form>
-        </span>
-      </header>
+      <IdentityBar email={claims.email} />
       <main>
         <h1>Your organizations</h1>
-        {error && <p className="error">{error}</p>}
+        {error && (
+          <div className="callout is-critical">
+            <p className="error" style={{ margin: 0 }}>
+              {error}
+            </p>
+          </div>
+        )}
+
         {orgs.length === 0 ? (
-          <p className="muted">
+          <p className="empty">
             You are not a member of any organization yet — create one below, or
             ask an admin to add you by your account email.
           </p>
         ) : (
-          <ul>
-            {orgs.map((org) => (
-              <li key={org.id}>
-                <Link href={`/orgs/${org.slug}`}>{org.name}</Link>{' '}
-                <span className="muted">({org.slug})</span>
-              </li>
-            ))}
-          </ul>
+          <Panel title="Organizations" scroll>
+            <table>
+              <thead>
+                <tr>
+                  <th>Organization</th>
+                  <th>Identifier</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orgs.map((org) => (
+                  <tr key={org.id}>
+                    <td>
+                      <Link href={`/orgs/${org.slug}`}>{org.name}</Link>
+                    </td>
+                    <td className="mono muted">{org.slug}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Panel>
         )}
 
         <h2>Create an organization</h2>
@@ -67,12 +76,12 @@ export default async function OrgsPage({
             <input name="name" required maxLength={200} />
           </label>
           <label>
-            Slug (URL identifier)
+            Identifier used in URLs
             <input
               name="slug"
               required
               pattern="[a-z0-9][a-z0-9-]{1,62}"
-              placeholder="e.g. nso-atlantis"
+              placeholder="nso-atlantis"
             />
           </label>
           <button type="submit">Create organization</button>

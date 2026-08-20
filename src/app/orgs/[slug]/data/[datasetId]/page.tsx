@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import { sql } from 'drizzle-orm';
 import { withRls } from '@/db/rls';
 import { getVerifiedClaims } from '@/lib/supabase/server';
+import { OrgShell, Panel } from '@/components/shell';
 import { applyMapping, commitStaged } from '../actions';
 
 export const dynamic = 'force-dynamic';
@@ -93,182 +94,268 @@ export default async function DatasetPage({
   if (!data) notFound();
   const { org, dataset, issues, staged, committed, versions, units } = data;
   const header = dataset.header ?? [];
-  const errorCount = issues.filter((i) => i.severity === 'error').reduce((s, i) => s + i.n, 0);
+  const errorCount = issues
+    .filter((i) => i.severity === 'error')
+    .reduce((s, i) => s + i.n, 0);
+  const warningCount = issues
+    .filter((i) => i.severity === 'warning')
+    .reduce((s, i) => s + i.n, 0);
 
   return (
-    <main>
-      <p>
-        <Link href={`/orgs/${org.slug}/data`}>← Source data</Link>
-      </p>
-      <h1>{dataset.name}</h1>
-      <p className="muted">
-        {dataset.original_filename} · {dataset.row_count ?? 0} rows ·{' '}
-        {(dataset.byte_size / 1024).toFixed(1)} KB
-        {dataset.sheet_name && <> · sheet {dataset.sheet_name}</>}
-        <br />
-        SHA-256 {dataset.sha256.slice(0, 16)}…
-        {dataset.provenance?.note && <> · {dataset.provenance.note}</>}
-      </p>
-      {error && <p className="error">{error}</p>}
+    <>
+      <OrgShell
+        slug={org.slug}
+        orgName={org.name}
+        email={claims.email}
+        current="data"
+      />
+      <main>
+        <Link className="backlink" href={`/orgs/${org.slug}/data`}>
+          ← Source data
+        </Link>
+        <h1>{dataset.name}</h1>
+        <ul className="meta">
+          <li>
+            <span className="v mono">{dataset.original_filename}</span>
+          </li>
+          <li>
+            <span className="k">Rows</span>
+            <span className="v">{dataset.row_count ?? 0}</span>
+          </li>
+          <li>
+            <span className="k">Size</span>
+            <span className="v">{(dataset.byte_size / 1024).toFixed(1)} KB</span>
+          </li>
+          {dataset.sheet_name && (
+            <li>
+              <span className="k">Sheet</span>
+              <span className="v">{dataset.sheet_name}</span>
+            </li>
+          )}
+          <li>
+            <span className="k">SHA-256</span>
+            <span className="v mono">{dataset.sha256.slice(0, 16)}…</span>
+          </li>
+          {dataset.provenance?.note && (
+            <li>
+              <span className="k">Provenance</span>
+              <span className="v">{dataset.provenance.note}</span>
+            </li>
+          )}
+        </ul>
 
-      <h2>Map the columns</h2>
-      <form className="stack" action={applyMapping}>
-        <input type="hidden" name="slug" value={org.slug} />
-        <input type="hidden" name="datasetId" value={dataset.id} />
-        {(
-          [
-            ['col_value', 'Value', true],
-            ['col_periodLabel', 'Reference period', true],
-            ['col_transactionCode', 'SNA transaction code', false],
-            ['col_activityCode', 'Activity code', false],
-            ['col_sectorCode', 'Institutional sector code', false],
-            ['col_unitCode', 'Unit (per row, optional)', false],
-          ] as const
-        ).map(([name, label, required]) => (
-          <label key={name}>
-            {label}
-            {required && ' *'}
-            <select name={name} defaultValue="" required={required}>
-              <option value="">— not mapped —</option>
-              {header.map((h) => (
-                <option key={h} value={h}>
-                  {h}
+        {error && (
+          <div className="callout is-critical">
+            <p className="error" style={{ margin: 0 }}>
+              {error}
+            </p>
+          </div>
+        )}
+
+        <ol className="stepper">
+          <li className="is-done">
+            <span className="n">1</span> Uploaded
+          </li>
+          <li className={staged.total > 0 ? 'is-done' : 'is-current'}>
+            <span className="n">2</span> Mapped
+          </li>
+          <li
+            className={
+              staged.total === 0
+                ? ''
+                : errorCount > 0
+                  ? 'is-current'
+                  : 'is-done'
+            }
+          >
+            <span className="n">3</span> Validated
+          </li>
+          <li className={committed > 0 ? 'is-done' : ''}>
+            <span className="n">4</span> Committed
+          </li>
+        </ol>
+
+        <h2>Map the columns</h2>
+        <form className="stack wide" action={applyMapping}>
+          <input type="hidden" name="slug" value={org.slug} />
+          <input type="hidden" name="datasetId" value={dataset.id} />
+          {(
+            [
+              ['col_value', 'Value', true],
+              ['col_periodLabel', 'Reference period', true],
+              ['col_transactionCode', 'SNA transaction code', false],
+              ['col_activityCode', 'Activity code', false],
+              ['col_sectorCode', 'Institutional sector code', false],
+              ['col_unitCode', 'Unit (per row, optional)', false],
+            ] as const
+          ).map(([name, label, required]) => (
+            <label key={name}>
+              {label}
+              {required && ' *'}
+              <select name={name} defaultValue="" required={required}>
+                <option value="">— not mapped —</option>
+                {header.map((h) => (
+                  <option key={h} value={h}>
+                    {h}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ))}
+          <label>
+            …or one transaction code for every row
+            <input name="const_transactionCode" placeholder="P.1" />
+          </label>
+          <label>
+            Activity classification version
+            <select name="activityVersionId" defaultValue="">
+              <option value="">— none —</option>
+              {versions.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.code} {v.version_label}
                 </option>
               ))}
             </select>
           </label>
-        ))}
-        <label>
-          …or one transaction code for every row
-          <input name="const_transactionCode" placeholder="e.g. P.1" />
-        </label>
-        <label>
-          Activity classification version
-          <select name="activityVersionId" defaultValue="">
-            <option value="">— none —</option>
-            {versions.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.code} {v.version_label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Unit for the whole file
-          <select name="unitCode" defaultValue="NC_MN">
-            {units.map((u) => (
-              <option key={u.code} value={u.code}>
-                {u.code} — {u.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Frequency
-          <select name="frequency" defaultValue="annual">
-            <option value="annual">annual</option>
-            <option value="quarterly">quarterly</option>
-          </select>
-        </label>
-        <label>
-          Valuation
-          <select name="valuation" defaultValue="">
-            <option value="">— not stated —</option>
-            <option value="basic">basic prices</option>
-            <option value="producers">producers&apos; prices</option>
-            <option value="purchasers">purchasers&apos; prices</option>
-          </select>
-        </label>
-        <label>
-          Decimal separator
-          <select name="decimalSeparator" defaultValue="">
-            <option value="">— infer, and flag anything ambiguous —</option>
-            <option value=".">. (1234.56)</option>
-            <option value=",">, (1234,56)</option>
-          </select>
-        </label>
-        <label>
-          Save this mapping as
-          <input name="mappingName" placeholder="e.g. ABS annual extract" />
-        </label>
-        <button type="submit">Apply mapping and validate</button>
-      </form>
+          <label>
+            Unit for the whole file
+            <select name="unitCode" defaultValue="NC_MN">
+              {units.map((u) => (
+                <option key={u.code} value={u.code}>
+                  {u.code} — {u.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Frequency
+            <select name="frequency" defaultValue="annual">
+              <option value="annual">annual</option>
+              <option value="quarterly">quarterly</option>
+            </select>
+          </label>
+          <label>
+            Valuation
+            <select name="valuation" defaultValue="">
+              <option value="">— not stated —</option>
+              <option value="basic">basic prices</option>
+              <option value="producers">producers&apos; prices</option>
+              <option value="purchasers">purchasers&apos; prices</option>
+            </select>
+          </label>
+          <label>
+            Decimal separator
+            <select name="decimalSeparator" defaultValue="">
+              <option value="">— infer, and flag anything ambiguous —</option>
+              <option value=".">. (1234.56)</option>
+              <option value=",">, (1234,56)</option>
+            </select>
+          </label>
+          <label>
+            Save this mapping as
+            <input name="mappingName" placeholder="ABS annual extract" />
+          </label>
+          <button type="submit">Apply mapping and validate</button>
+        </form>
 
-      <h2>Validation</h2>
-      {staged.total === 0 ? (
-        <p className="muted">Nothing staged yet — apply a mapping above.</p>
-      ) : (
-        <>
-          <p>
-            {staged.valid} of {staged.total} rows are ready to commit.
-            {errorCount > 0 && (
-              <>
-                {' '}
-                <span className="error">{errorCount} error(s) block the commit.</span>
-              </>
-            )}
-          </p>
-          {issues.length > 0 && (
-            <div className="card">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Severity</th>
-                    <th>Finding</th>
-                    <th>Count</th>
-                    <th>First row</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {issues.map((i) => (
-                    <tr key={`${i.severity}-${i.code}`}>
-                      <td className={i.severity === 'error' ? 'error' : undefined}>
-                        {i.severity}
-                      </td>
-                      <td>
-                        <strong>{i.code}</strong>
-                        <br />
-                        <span className="muted">{i.message}</span>
-                      </td>
-                      <td>{i.n}</td>
-                      <td>{i.source_row_number ?? '—'}</td>
+        <h2>Validation</h2>
+        {staged.total === 0 ? (
+          <p className="empty">Nothing staged yet — apply a mapping above.</p>
+        ) : (
+          <>
+            <ul className="meta">
+              <li>
+                <span className="k">Ready to commit</span>
+                <span className="v">
+                  {staged.valid} of {staged.total} rows
+                </span>
+              </li>
+              {errorCount > 0 && (
+                <li>
+                  <span className="pill is-critical">
+                    {errorCount} error{errorCount === 1 ? '' : 's'} blocking
+                  </span>
+                </li>
+              )}
+              {warningCount > 0 && (
+                <li>
+                  <span className="pill is-warning">
+                    {warningCount} warning{warningCount === 1 ? '' : 's'}
+                  </span>
+                </li>
+              )}
+            </ul>
+
+            {issues.length > 0 && (
+              <Panel scroll>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Finding</th>
+                      <th className="num">Rows</th>
+                      <th className="num">First</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          <p className="muted">
-            Errors block the commit. Warnings do not — several of them are
-            legitimately possible, and a compiler who has checked should not be
-            stopped by the tool.
-          </p>
-        </>
-      )}
+                  </thead>
+                  <tbody>
+                    {issues.map((i) => (
+                      <tr key={`${i.severity}-${i.code}`} className={`sev-${i.severity}`}>
+                        <td>
+                          <span className="mono">{i.code}</span>{' '}
+                          <span
+                            className={
+                              i.severity === 'error'
+                                ? 'pill is-critical'
+                                : i.severity === 'warning'
+                                  ? 'pill is-warning'
+                                  : 'pill'
+                            }
+                          >
+                            {i.severity}
+                          </span>
+                          <br />
+                          <span className="muted">{i.message}</span>
+                        </td>
+                        <td className="num">{i.n}</td>
+                        <td className="num">{i.source_row_number ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </Panel>
+            )}
+            <p className="muted">
+              Errors block the commit. Warnings do not — several of them are
+              legitimately possible, and a compiler who has checked should not
+              be stopped by the tool.
+            </p>
+          </>
+        )}
 
-      <h2>Commit</h2>
-      {committed > 0 && (
-        <p>
-          {committed} observation(s) committed from this dataset. Re-committing
-          updates them in place while the vintage is open.
+        <h2>Commit</h2>
+        {committed > 0 && (
+          <p className="muted">
+            {committed} observation{committed === 1 ? '' : 's'} committed from
+            this dataset. Re-committing updates them in place while the vintage
+            is open.
+          </p>
+        )}
+        <form className="stack" action={commitStaged}>
+          <input type="hidden" name="slug" value={org.slug} />
+          <input type="hidden" name="datasetId" value={dataset.id} />
+          <label>
+            Vintage
+            <input name="vintageName" placeholder="2024 first estimate" required />
+          </label>
+          <button type="submit" disabled={staged.total === 0 || errorCount > 0}>
+            Commit staged rows
+          </button>
+        </form>
+        <p className="muted">
+          Committing writes observations into an open vintage. Once a vintage is
+          frozen its observations become immutable — revisions go into a new
+          vintage, so a published figure stays reproducible.
         </p>
-      )}
-      <form className="stack" action={commitStaged}>
-        <input type="hidden" name="slug" value={org.slug} />
-        <input type="hidden" name="datasetId" value={dataset.id} />
-        <label>
-          Vintage
-          <input name="vintageName" placeholder="e.g. 2024 first estimate" required />
-        </label>
-        <button type="submit" disabled={staged.total === 0 || errorCount > 0}>
-          Commit staged rows
-        </button>
-      </form>
-      <p className="muted">
-        Committing writes observations into an open vintage. Once a vintage is
-        frozen its observations become immutable — revisions go into a new
-        vintage, so a published figure stays reproducible.
-      </p>
-    </main>
+      </main>
+    </>
   );
 }

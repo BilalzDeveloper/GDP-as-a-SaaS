@@ -1,125 +1,663 @@
+/* ===========================================================================
+   GDP Compilation Platform — visual system
+   ---------------------------------------------------------------------------
+   The audience is a compiler or reviewer in a statistical office, reading
+   tables of figures and deciding whether to trust them. So the system is
+   built for information density and legibility of numbers, not for
+   decoration: hairline rules, tabular figures, semantic colour reserved for
+   severity, and one accent used sparingly.
+
+   Typography works in three roles — a serif for headings (an NSO publishes;
+   headings should read as publication), a sans for interface text, a mono for
+   codes, checksums and figures.
+
+   These are SYSTEM stacks, deliberately. A webfont from a third-party CDN is
+   a poor default for this audience: public bodies in the EU in particular
+   have policies against it, and Google Fonts embedding has been litigated
+   under the GDPR. Self-hosting the intended faces (the IBM Plex superfamily)
+   is the upgrade path — drop the woff2 files into public/fonts, add @font-face
+   rules, and prepend them to these stacks. See DECISIONS.md D32.
+   =========================================================================== */
+
 :root {
-  --bg: #fafaf8;
-  --fg: #1a1a1a;
-  --muted: #6b6b6b;
-  --border: #e2e2dd;
-  --accent: #1d4ed8;
+  /* Neutrals carry a faint green-slate bias so they read as chosen rather
+     than defaulted. */
+  --paper: #f7f8f7;
+  --surface: #ffffff;
+  --surface-2: #f1f3f2;
+  --ink: #131a19;
+  --ink-2: #3d4a48;
+  --muted: #5b6866;
+  --line: #dde2e0;
+  --line-strong: #c4ccc9;
+
+  /* One accent, used sparingly. */
+  --accent: #0b5b57;
+  --accent-hover: #084440;
   --accent-fg: #ffffff;
-  --danger: #b91c1c;
-  --card: #ffffff;
+  --accent-wash: #e8f1f0;
+
+  /* Severity is its own scale and never doubles as emphasis. */
+  --critical: #a3241f;
+  --critical-wash: #fbeceb;
+  --warning: #8a5a08;
+  --warning-wash: #fbf3e4;
+  --positive: #1f6b3a;
+  --positive-wash: #eaf4ed;
+  --neutral-chip: #4a5a72;
+  --neutral-chip-wash: #eef1f5;
+
+  --radius: 4px;
+  --radius-lg: 6px;
+
+  --font-display: ui-serif, 'Iowan Old Style', 'Palatino Linotype', Palatino,
+    Georgia, 'Times New Roman', serif;
+  --font-ui: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', Menlo,
+    Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --paper: #0e1413;
+    --surface: #151d1c;
+    --surface-2: #1b2422;
+    --ink: #e7edeb;
+    --ink-2: #b8c4c1;
+    --muted: #8fa09c;
+    --line: #26302e;
+    --line-strong: #38443f;
+
+    --accent: #4ec5b8;
+    --accent-hover: #6ad6c9;
+    --accent-fg: #06201e;
+    --accent-wash: #12302d;
+
+    --critical: #f08a80;
+    --critical-wash: #341917;
+    --warning: #e0ab52;
+    --warning-wash: #31260f;
+    --positive: #79c98f;
+    --positive-wash: #14291b;
+    --neutral-chip: #9db0c9;
+    --neutral-chip-wash: #1d2530;
+  }
+}
+
+:root[data-theme='dark'] {
+  --paper: #0e1413;
+  --surface: #151d1c;
+  --surface-2: #1b2422;
+  --ink: #e7edeb;
+  --ink-2: #b8c4c1;
+  --muted: #8fa09c;
+  --line: #26302e;
+  --line-strong: #38443f;
+
+  --accent: #4ec5b8;
+  --accent-hover: #6ad6c9;
+  --accent-fg: #06201e;
+  --accent-wash: #12302d;
+
+  --critical: #f08a80;
+  --critical-wash: #341917;
+  --warning: #e0ab52;
+  --warning-wash: #31260f;
+  --positive: #79c98f;
+  --positive-wash: #14291b;
+  --neutral-chip: #9db0c9;
+  --neutral-chip-wash: #1d2530;
 }
 
 * {
   box-sizing: border-box;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
-  background: var(--bg);
-  color: var(--fg);
-  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 15px;
   line-height: 1.55;
 }
 
-main {
-  max-width: 44rem;
-  margin: 0 auto;
-  padding: 2.5rem 1.25rem 4rem;
+/* --- Application shell ---------------------------------------------------
+   Two tiers: who you are and where you are (identity bar), then what you can
+   open (section nav). Keeping them apart means the section nav can change per
+   organization without the identity bar moving. */
+
+.identity-bar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
 }
 
+.identity-inner,
+.section-nav-inner,
+.field {
+  max-width: 68rem;
+  margin: 0 auto;
+  padding-inline: 1.5rem;
+}
+
+.identity-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 3.25rem;
+  flex-wrap: wrap;
+}
+
+.wordmark {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--ink);
+  text-decoration: none;
+  letter-spacing: -0.005em;
+}
+
+.wordmark .mark {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 0.05rem 0.3rem;
+}
+
+.identity-right {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.section-nav {
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.section-nav-inner {
+  display: flex;
+  gap: 0.25rem;
+  overflow-x: auto;
+}
+
+.section-nav a {
+  display: block;
+  padding: 0.6rem 0.7rem;
+  font-size: 0.88rem;
+  color: var(--ink-2);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+}
+
+.section-nav a:hover {
+  color: var(--ink);
+  border-bottom-color: var(--line-strong);
+}
+
+.section-nav a[aria-current='page'] {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 500;
+}
+
+main {
+  max-width: 68rem;
+  margin: 0 auto;
+  padding: 1.75rem 1.5rem 5rem;
+}
+
+/* A narrow measure for pages that are mostly prose or a single form. The
+   container keeps the full width so the content column starts on the same
+   left edge as the wordmark above it; only the children are narrowed. */
+main.narrow > * {
+  max-width: 34rem;
+}
+
+/* --- Typography ---------------------------------------------------------- */
+
 h1 {
-  font-size: 1.5rem;
-  margin: 0 0 0.5rem;
+  font-family: var(--font-display);
+  font-size: 1.55rem;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.012em;
+  margin: 0 0 0.35rem;
+  text-wrap: balance;
 }
 
 h2 {
+  font-family: var(--font-display);
   font-size: 1.1rem;
-  margin: 2rem 0 0.5rem;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 2.25rem 0 0.6rem;
+  text-wrap: balance;
 }
 
-p.muted,
-span.muted {
+h3 {
+  font-family: var(--font-ui);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
   color: var(--muted);
-  font-size: 0.9rem;
+  margin: 1.5rem 0 0.5rem;
+}
+
+p {
+  margin: 0 0 0.75rem;
+  max-width: 68ch;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.lede {
+  font-size: 1.02rem;
+  color: var(--ink-2);
+  max-width: 62ch;
 }
 
 a {
   color: var(--accent);
+  text-underline-offset: 2px;
 }
 
-form.stack {
-  display: grid;
-  gap: 0.75rem;
-  max-width: 24rem;
+a:hover {
+  color: var(--accent-hover);
 }
 
-label {
-  display: grid;
-  gap: 0.25rem;
-  font-size: 0.9rem;
+code,
+.mono {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
 }
 
-input,
-select {
-  padding: 0.5rem 0.6rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font: inherit;
-  background: var(--card);
-  color: inherit;
-}
-
-button {
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 6px;
-  background: var(--accent);
-  color: var(--accent-fg);
-  font: inherit;
-  cursor: pointer;
-  justify-self: start;
-}
-
-button.link {
-  background: none;
-  color: var(--accent);
+/* Metadata strip under a page title: short facts, separated by rules. */
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1rem;
+  margin: 0 0 1.25rem;
   padding: 0;
-  text-decoration: underline;
+  list-style: none;
+  font-size: 0.84rem;
+  color: var(--muted);
 }
 
-.error {
-  color: var(--danger);
-  font-size: 0.9rem;
+.meta li {
+  display: flex;
+  gap: 0.35rem;
 }
+
+.meta .k {
+  color: var(--muted);
+}
+
+.meta .v {
+  color: var(--ink-2);
+  font-weight: 500;
+}
+
+.meta .v.mono {
+  font-size: 0.8rem;
+}
+
+/* --- Panels -------------------------------------------------------------- */
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  margin: 0 0 1.1rem;
+  overflow: hidden;
+}
+
+.panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+}
+
+.panel-head h2,
+.panel-head h3 {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.panel-body {
+  padding: 1rem;
+}
+
+.panel-body > :last-child {
+  margin-bottom: 0;
+}
+
+/* Tables can exceed the panel; scroll them, never the page. */
+.panel-scroll {
+  overflow-x: auto;
+}
+
+/* A panel that carries a message rather than data. */
+.callout {
+  border-left: 3px solid var(--line-strong);
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 0.85rem 1rem;
+  margin: 0 0 1.1rem;
+}
+
+.callout > :last-child {
+  margin-bottom: 0;
+}
+
+.callout.is-critical {
+  border-left-color: var(--critical);
+  background: var(--critical-wash);
+}
+
+.callout.is-warning {
+  border-left-color: var(--warning);
+  background: var(--warning-wash);
+}
+
+.callout.is-note {
+  border-left-color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.callout-title {
+  font-weight: 600;
+  font-size: 0.92rem;
+  margin: 0 0 0.35rem;
+}
+
+/* --- Tables -------------------------------------------------------------- */
 
 table {
   border-collapse: collapse;
   width: 100%;
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--line-strong);
+  white-space: nowrap;
+}
+
+td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Figures line up on the right and use the mono face, so a column of numbers
+   can be scanned for magnitude at a glance. */
+td.num,
+th.num {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 0.83rem;
+  white-space: nowrap;
+}
+
+td.num.is-negative {
+  color: var(--critical);
+}
+
+td.strong {
+  font-weight: 600;
+}
+
+/* --- Status and severity -------------------------------------------------
+   State is encoded in form as well as text, so what needs attention reads
+   before it is read. */
+
+.pill {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  background: var(--neutral-chip-wash);
+  color: var(--neutral-chip);
+}
+
+.pill.is-critical { background: var(--critical-wash); color: var(--critical); }
+.pill.is-warning { background: var(--warning-wash); color: var(--warning); }
+.pill.is-positive { background: var(--positive-wash); color: var(--positive); }
+.pill.is-accent { background: var(--accent-wash); color: var(--accent); }
+
+/* A severity stripe makes a long diagnostic list scannable by eye. */
+tr.sev-error td:first-child { box-shadow: inset 3px 0 0 var(--critical); }
+tr.sev-warning td:first-child { box-shadow: inset 3px 0 0 var(--warning); }
+tr.sev-info td:first-child { box-shadow: inset 3px 0 0 var(--line-strong); }
+
+.error {
+  color: var(--critical);
   font-size: 0.9rem;
 }
 
-th,
-td {
-  text-align: left;
-  padding: 0.45rem 0.6rem;
-  border-bottom: 1px solid var(--border);
-}
+/* --- Workflow stepper ----------------------------------------------------
+   A genuine sequence — a run really does pass through these states in order —
+   so the numbering encodes something true rather than decorating the page. */
 
-.card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 1rem 1.25rem;
-  margin: 0.75rem 0;
-}
-
-header.site {
+.stepper {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0 0 1.1rem;
+  padding: 0;
+  list-style: none;
+  font-size: 0.78rem;
+}
+
+.stepper li {
+  display: flex;
   align-items: center;
-  gap: 1rem;
-  max-width: 44rem;
-  margin: 0 auto;
-  padding: 1rem 1.25rem;
-  border-bottom: 1px solid var(--border);
+  gap: 0.4rem;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--surface);
+}
+
+.stepper li .n {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+}
+
+.stepper li.is-done {
+  color: var(--positive);
+  border-color: color-mix(in srgb, var(--positive) 35%, var(--line));
+}
+
+.stepper li.is-current {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-wash);
+  font-weight: 600;
+}
+
+/* --- Forms --------------------------------------------------------------- */
+
+form.stack {
+  display: grid;
+  gap: 0.85rem;
+  max-width: 26rem;
+}
+
+form.stack.wide {
+  max-width: none;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  align-items: end;
+}
+
+label {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.84rem;
+  font-weight: 500;
+  color: var(--ink-2);
+  min-width: 0;
+}
+
+input,
+select,
+textarea {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 400;
+  background: var(--surface);
+  color: var(--ink);
+  /* A select is as wide as its longest option unless told otherwise, and one
+     long option ("- infer, and flag anything ambiguous -") would otherwise
+     push a whole grid column past the edge of the page. */
+  min-width: 0;
+  width: 100%;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+input[type='file'] {
+  padding: 0.35rem;
+  font-size: 0.85rem;
+}
+
+button {
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--accent-fg);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  justify-self: start;
+}
+
+button:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+button.secondary {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+
+button.secondary:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: var(--line-strong);
+}
+
+button.link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  padding: 0;
+  font-size: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* --- Small pieces -------------------------------------------------------- */
+
+.backlink {
+  display: inline-block;
+  font-size: 0.84rem;
+  margin: 0 0 0.75rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+  margin: 0 0 1.1rem;
+}
+
+.empty {
+  color: var(--muted);
+  font-size: 0.9rem;
+  padding: 0.5rem 0;
+}
+
+.list-plain {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+  display: grid;
+  gap: 0.3rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

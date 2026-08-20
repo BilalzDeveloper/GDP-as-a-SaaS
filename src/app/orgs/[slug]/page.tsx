@@ -1,8 +1,8 @@
-import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { eq, sql } from 'drizzle-orm';
 import { withRls, schema } from '@/db/rls';
 import { getVerifiedClaims } from '@/lib/supabase/server';
+import { OrgShell, Panel } from '@/components/shell';
 import { addMember } from '../actions';
 
 export const dynamic = 'force-dynamic';
@@ -12,6 +12,21 @@ type MemberRow = {
   email: string;
   role: 'admin' | 'compiler' | 'reviewer' | 'viewer';
   created_at: string;
+};
+
+/** What each role can do, so the members table explains itself. */
+const ROLE_NOTE: Record<MemberRow['role'], string> = {
+  admin: 'manages members and publishes',
+  compiler: 'uploads data and runs compilations',
+  reviewer: 'approves runs for publication',
+  viewer: 'read-only',
+};
+
+const ROLE_TONE: Record<MemberRow['role'], string> = {
+  admin: 'pill is-accent',
+  compiler: 'pill',
+  reviewer: 'pill is-positive',
+  viewer: 'pill',
 };
 
 export default async function OrgPage({
@@ -45,75 +60,92 @@ export default async function OrgPage({
   const myRole = members.find((m) => m.user_id === claims.sub)?.role;
 
   return (
-    <main>
-      <p>
-        <Link href="/orgs">← Your organizations</Link>
-      </p>
-      <h1>{org.name}</h1>
-      <p className="muted">
-        Slug: {org.slug} · Fiscal year starts month {org.fiscalYearStartMonth} ·
-        Your role: {myRole ?? 'unknown'}
-      </p>
-      {error && <p className="error">{error}</p>}
+    <>
+      <OrgShell
+        slug={org.slug}
+        orgName={org.name}
+        email={claims.email}
+        current="overview"
+      />
+      <main>
+        <h1>{org.name}</h1>
+        <ul className="meta">
+          <li>
+            <span className="k">Identifier</span>
+            <span className="v mono">{org.slug}</span>
+          </li>
+          <li>
+            <span className="k">Fiscal year starts</span>
+            <span className="v">month {org.fiscalYearStartMonth}</span>
+          </li>
+          <li>
+            <span className="k">Your role</span>
+            <span className="v">{myRole ?? 'unknown'}</span>
+          </li>
+        </ul>
 
-      <p>
-        <Link href={`/orgs/${org.slug}/classifications`}>
-          Classifications and mappings
-        </Link>
-        {' · '}
-        <Link href={`/orgs/${org.slug}/data`}>Source data</Link>
-        {' · '}
-        <Link href={`/orgs/${org.slug}/runs`}>Compilation runs</Link>
-      </p>
+        {error && (
+          <div className="callout is-critical">
+            <p className="error" style={{ margin: 0 }}>
+              {error}
+            </p>
+          </div>
+        )}
 
-      <h2>Members</h2>
-      <div className="card">
-        <table>
-          <thead>
-            <tr>
-              <th>Email</th>
-              <th>Role</th>
-              <th>Since</th>
-            </tr>
-          </thead>
-          <tbody>
-            {members.map((m) => (
-              <tr key={m.user_id}>
-                <td>{m.email}</td>
-                <td>{m.role}</td>
-                <td>{new Date(m.created_at).toISOString().slice(0, 10)}</td>
+        <Panel title={`Members · ${members.length}`} scroll>
+          <table>
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Can</th>
+                <th>Since</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {members.map((m) => (
+                <tr key={m.user_id}>
+                  <td className="mono">{m.email}</td>
+                  <td>
+                    <span className={ROLE_TONE[m.role]}>{m.role}</span>
+                  </td>
+                  <td className="muted">{ROLE_NOTE[m.role]}</td>
+                  <td className="mono muted">
+                    {new Date(m.created_at).toISOString().slice(0, 10)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Panel>
 
-      {myRole === 'admin' && (
-        <>
-          <h2>Add a member</h2>
-          <form className="stack" action={addMember}>
-            <input type="hidden" name="orgId" value={org.id} />
-            <input type="hidden" name="orgSlug" value={org.slug} />
-            <label>
-              Account email
-              <input name="email" type="email" required />
-            </label>
-            <label>
-              Role
-              <select name="role" defaultValue="viewer">
-                <option value="admin">admin</option>
-                <option value="compiler">compiler</option>
-                <option value="reviewer">reviewer</option>
-                <option value="viewer">viewer</option>
-              </select>
-            </label>
-            <button type="submit">Add member</button>
-          </form>
-          <p className="muted">
-            The person must already have an account with that email.
-          </p>
-        </>
-      )}
-    </main>
+        {myRole === 'admin' && (
+          <>
+            <h2>Add a member</h2>
+            <form className="stack" action={addMember}>
+              <input type="hidden" name="orgId" value={org.id} />
+              <input type="hidden" name="orgSlug" value={org.slug} />
+              <label>
+                Account email
+                <input name="email" type="email" required />
+              </label>
+              <label>
+                Role
+                <select name="role" defaultValue="viewer">
+                  <option value="admin">admin — manages members and publishes</option>
+                  <option value="compiler">compiler — uploads data and runs compilations</option>
+                  <option value="reviewer">reviewer — approves runs for publication</option>
+                  <option value="viewer">viewer — read-only</option>
+                </select>
+              </label>
+              <button type="submit">Add member</button>
+            </form>
+            <p className="muted">
+              The person must already have an account with that email.
+            </p>
+          </>
+        )}
+      </main>
+    </>
   );
 }

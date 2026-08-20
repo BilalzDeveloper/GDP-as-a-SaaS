@@ -65,6 +65,7 @@ src/engine/         pure SNA 2008 calculation engine (no DB, no deps)
 src/intake/         upload parsing, column mapping, validation rules
 src/compile/        observation-to-engine assembler and run execution
 src/export/         SDMX-CSV and Excel exporters
+src/components/     the application shell (identity bar, section nav, panels)
 tests/rls/          adversarial tenant-isolation suite
 tests/reference/    reference-data isolation and seed integrity
 tests/engine/       engine identities, invariants, fixtures and purity
@@ -72,6 +73,24 @@ tests/intake/       number parsing, xlsx/csv, validation rules, intake end-to-en
 tests/compile/      assembler, execution, reproducibility, drill-down
 tests/review/       review workflow, role gating, embargo, exports
 ```
+
+## Interface
+
+`src/app/globals.css` is the whole visual system: a token block for light,
+redefined for dark under both `prefers-color-scheme` and an explicit
+`[data-theme]`, then a small component vocabulary built on those tokens —
+panels, callouts, pills, severity stripes, the workflow stepper, and numeric
+table cells set in a mono face with tabular figures. Fonts are system stacks
+by deliberate choice (`DECISIONS.md` D32).
+
+To see every screen without a live database:
+
+```bash
+python3 scripts/build-preview.py preview.html
+```
+
+It reads `globals.css` at build time and re-scopes it, so the preview cannot
+drift from the application it is showing.
 
 ## Tenant isolation
 

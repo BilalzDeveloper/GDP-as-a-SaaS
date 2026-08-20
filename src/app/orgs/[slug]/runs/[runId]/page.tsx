@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import { sql } from 'drizzle-orm';
 import { withRls } from '@/db/rls';
 import { getVerifiedClaims } from '@/lib/supabase/server';
+import { OrgShell, Panel } from '@/components/shell';
 import { publishRun, reviewRun, runExecute, submitForReview } from '../actions';
 
 export const dynamic = 'force-dynamic';
@@ -199,122 +200,197 @@ export default async function RunPage({
     ? results.find((r) => r.activity_item_id === drill)?.activity_name
     : null;
 
+  const STAGES = ['computed', 'under_review', 'approved', 'published'];
+  const stageIndex = STAGES.indexOf(run.status);
+
   return (
-    <main>
-      <p>
-        <Link href={`/orgs/${org.slug}/runs`}>← Compilation runs</Link>
-      </p>
-      <h1>{run.name}</h1>
-      <p className="muted">
-        Vintage: {run.vintage_name}
-        {run.frozen_at && ' (frozen)'} · Anchor: {run.anchor_approach} · Status:{' '}
-        {run.status}
-        {run.engine_semver && (
-          <>
-            <br />
-            Method pinned: engine {run.engine_semver}
-            {run.config ? ` · ${JSON.stringify(run.config)}` : ''}
-          </>
+    <>
+      <OrgShell
+        slug={org.slug}
+        orgName={org.name}
+        email={claims.email}
+        current="runs"
+      />
+      <main>
+        <Link className="backlink" href={`/orgs/${org.slug}/runs`}>
+          ← Compilation runs
+        </Link>
+        <h1>{run.name}</h1>
+        <ul className="meta">
+          <li>
+            <span className="k">Vintage</span>
+            <span className="v">
+              {run.vintage_name}
+              {run.frozen_at ? ' (frozen)' : ''}
+            </span>
+          </li>
+          <li>
+            <span className="k">Anchor</span>
+            <span className="v">{run.anchor_approach}</span>
+          </li>
+          {run.engine_semver && (
+            <li>
+              <span className="k">Engine</span>
+              <span className="v mono">{run.engine_semver}</span>
+            </li>
+          )}
+          {run.executed_at && (
+            <li>
+              <span className="k">Executed</span>
+              <span className="v mono">
+                {new Date(run.executed_at).toISOString().slice(0, 16).replace('T', ' ')}
+              </span>
+            </li>
+          )}
+        </ul>
+
+        {/* The run really does pass through these states in order, so the
+            numbering encodes the workflow rather than decorating it. */}
+        <ol className="stepper">
+          {[
+            ['Computed', 'computed'],
+            ['Under review', 'under_review'],
+            ['Approved', 'approved'],
+            ['Published', 'published'],
+          ].map(([label, key], i) => (
+            <li
+              key={key}
+              className={
+                stageIndex > i ? 'is-done' : stageIndex === i ? 'is-current' : ''
+              }
+            >
+              <span className="n">{i + 1}</span> {label}
+            </li>
+          ))}
+        </ol>
+
+        {error && (
+          <div className="callout is-critical">
+            <p className="error" style={{ margin: 0 }}>
+              {error}
+            </p>
+          </div>
         )}
-      </p>
-      {error && <p className="error">{error}</p>}
-      {run.error_message && <p className="error">{run.error_message}</p>}
-
-      <form action={runExecute} style={{ margin: '1rem 0' }}>
-        <input type="hidden" name="slug" value={org.slug} />
-        <input type="hidden" name="runId" value={run.id} />
-        <button type="submit">
-          {run.status === 'computed' ? 'Re-execute' : 'Execute'}
-        </button>
-      </form>
-
-      {results.length === 0 ? (
-        <p className="muted">
-          No results yet. Executing reads the observations in the run&apos;s
-          vintage and compiles every period they cover.
-        </p>
-      ) : (
-        <>
-          <h2>GDP by approach</h2>
-          <div className="card">
-            <table>
-              <thead>
-                <tr>
-                  <th>Period</th>
-                  <th>Production</th>
-                  <th>Expenditure</th>
-                  <th>Income</th>
-                  <th>Headline</th>
-                </tr>
-              </thead>
-              <tbody>
-                {periods.map((p) => (
-                  <tr key={p}>
-                    <td>{p}</td>
-                    <td>{fmt(value(p, 'production', 'gdp'))}</td>
-                    <td>{fmt(value(p, 'expenditure', 'gdp'))}</td>
-                    <td>{fmt(value(p, 'income', 'gdp'))}</td>
-                    <td>
-                      <strong>{fmt(value(p, 'summary', 'headline_gdp'))}</strong>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {run.error_message && (
+          <div className="callout is-critical">
+            <p className="callout-title">Execution failed</p>
+            <p className="muted" style={{ margin: 0 }}>
+              {run.error_message}
+            </p>
           </div>
+        )}
 
-          <h2>Statistical discrepancy</h2>
-          <div className="card">
-            <table>
-              <thead>
-                <tr>
-                  <th>Period</th>
-                  <th>Production</th>
-                  <th>Expenditure</th>
-                  <th>Income</th>
-                </tr>
-              </thead>
-              <tbody>
-                {periods.map((p) => (
-                  <tr key={p}>
-                    <td>{p}</td>
-                    {(['production', 'expenditure', 'income'] as const).map((a) => (
-                      <td key={a}>
-                        {fmt(value(p, 'summary', `statistical_discrepancy_${a}`))}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="muted">
-            Anchor minus the approach, so a positive figure means that approach
-            falls short of the headline. Discrepancies are reported, never
-            removed by adjusting an estimate.
+        <div className="actions">
+          <form action={runExecute}>
+            <input type="hidden" name="slug" value={org.slug} />
+            <input type="hidden" name="runId" value={run.id} />
+            <button type="submit" className={results.length > 0 ? 'secondary' : undefined}>
+              {run.status === 'computed' || results.length > 0 ? 'Re-execute' : 'Execute'}
+            </button>
+          </form>
+          {results.length > 0 && (
+            <>
+              <a href={`/orgs/${org.slug}/runs/${run.id}/export/sdmx-csv`}>
+                Export SDMX-CSV
+              </a>
+              <a href={`/orgs/${org.slug}/runs/${run.id}/export/xlsx`}>
+                Export Excel
+              </a>
+            </>
+          )}
+        </div>
+
+        {results.length === 0 ? (
+          <p className="empty">
+            No results yet. Executing reads the observations in the run&apos;s
+            vintage and compiles every period they cover.
           </p>
+        ) : (
+          <>
+            <Panel title="GDP at market prices, by approach" scroll>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Period</th>
+                    <th className="num">Production</th>
+                    <th className="num">Expenditure</th>
+                    <th className="num">Income</th>
+                    <th className="num">Headline</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {periods.map((p) => (
+                    <tr key={p}>
+                      <td className="mono">{p}</td>
+                      <td className="num">{fmt(value(p, 'production', 'gdp'))}</td>
+                      <td className="num">{fmt(value(p, 'expenditure', 'gdp'))}</td>
+                      <td className="num">{fmt(value(p, 'income', 'gdp'))}</td>
+                      <td className="num strong">
+                        {fmt(value(p, 'summary', 'headline_gdp'))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Panel>
 
-          <h2>Value added by industry</h2>
-          {periods.map((p) => {
-            const rows = results.filter(
-              (r) =>
-                r.period_label === p &&
-                r.measure === 'gross_value_added' &&
-                r.price_basis === 'current' &&
-                r.activity_item_id !== null,
-            );
-            if (rows.length === 0) return null;
-            return (
-              <div key={p}>
-                <h3>{p}</h3>
-                <div className="card">
+            <Panel title="Statistical discrepancy" scroll>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Period</th>
+                    <th className="num">Production</th>
+                    <th className="num">Expenditure</th>
+                    <th className="num">Income</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {periods.map((p) => (
+                    <tr key={p}>
+                      <td className="mono">{p}</td>
+                      {(['production', 'expenditure', 'income'] as const).map((a) => {
+                        const v = value(p, 'summary', `statistical_discrepancy_${a}`);
+                        return (
+                          <td
+                            key={a}
+                            className={
+                              v !== null && Number(v) < 0 ? 'num is-negative' : 'num'
+                            }
+                          >
+                            {fmt(v)}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Panel>
+            <p className="muted">
+              Anchor minus the approach, so a positive figure means that
+              approach falls short of the headline. Discrepancies are reported,
+              never removed by adjusting an estimate.
+            </p>
+
+            <h2>Value added by industry</h2>
+            {periods.map((p) => {
+              const rows = results.filter(
+                (r) =>
+                  r.period_label === p &&
+                  r.measure === 'gross_value_added' &&
+                  r.price_basis === 'current' &&
+                  r.activity_item_id !== null,
+              );
+              if (rows.length === 0) return null;
+              return (
+                <Panel key={p} title={`${p} · current prices`} scroll>
                   <table>
                     <thead>
                       <tr>
                         <th>Industry</th>
-                        <th>Output</th>
-                        <th>Intermediate</th>
-                        <th>Value added</th>
+                        <th className="num">Output</th>
+                        <th className="num">Intermediate</th>
+                        <th className="num">Value added</th>
                         <th />
                       </tr>
                     </thead>
@@ -331,11 +407,22 @@ export default async function RunPage({
                         return (
                           <tr key={r.activity_item_id}>
                             <td>
-                              {r.activity_code} {r.activity_name}
+                              <span className="mono">{r.activity_code}</span>{' '}
+                              {r.activity_name}
                             </td>
-                            <td>{fmt(other('output'))}</td>
-                            <td>{fmt(other('intermediate_consumption'))}</td>
-                            <td>{fmt(r.value)}</td>
+                            <td className="num">{fmt(other('output'))}</td>
+                            <td className="num">
+                              {fmt(other('intermediate_consumption'))}
+                            </td>
+                            <td
+                              className={
+                                r.value !== null && Number(r.value) < 0
+                                  ? 'num strong is-negative'
+                                  : 'num strong'
+                              }
+                            >
+                              {fmt(r.value)}
+                            </td>
                             <td>
                               <Link
                                 href={`/orgs/${org.slug}/runs/${run.id}?drill=${r.activity_item_id}&period=${encodeURIComponent(p)}`}
@@ -348,150 +435,166 @@ export default async function RunPage({
                       })}
                     </tbody>
                   </table>
-                </div>
-              </div>
-            );
-          })}
+                </Panel>
+              );
+            })}
 
-          {drill && period && (
-            <>
-              <h2>
-                Contributing source records — {drilledName ?? 'industry'}, {period}
-              </h2>
-              {sources.length === 0 ? (
-                <p className="muted">No source records found for that cell.</p>
-              ) : (
-                <div className="card">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Transaction</th>
-                        <th>Value</th>
-                        <th>Source file</th>
-                        <th>Row</th>
-                        <th>As uploaded</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sources.map((s, i) => (
-                        <tr key={i}>
-                          <td>{s.transaction_code}</td>
-                          <td>{fmt(s.value)}</td>
-                          <td>
-                            {s.original_filename ?? '—'}
-                            {s.sha256 && (
-                              <>
-                                <br />
-                                <span className="muted">{s.sha256.slice(0, 12)}…</span>
-                              </>
-                            )}
-                          </td>
-                          <td>{s.source_row_number ?? '—'}</td>
-                          <td>
-                            <span className="muted">
-                              {s.raw ? JSON.stringify(s.raw) : '—'}
-                            </span>
-                          </td>
+            {drill && period && (
+              <>
+                <h2>
+                  Source records — {drilledName ?? 'industry'}, {period}
+                </h2>
+                {sources.length === 0 ? (
+                  <p className="empty">No source records found for that cell.</p>
+                ) : (
+                  <Panel scroll>
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Transaction</th>
+                          <th className="num">Value</th>
+                          <th>Source file</th>
+                          <th className="num">Row</th>
+                          <th>As uploaded</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {sources.map((s, i) => (
+                          <tr key={i}>
+                            <td className="mono">{s.transaction_code}</td>
+                            <td className="num">{fmt(s.value)}</td>
+                            <td>
+                              {s.original_filename ?? '—'}
+                              {s.sha256 && (
+                                <>
+                                  <br />
+                                  <span className="muted mono">
+                                    {s.sha256.slice(0, 12)}…
+                                  </span>
+                                </>
+                              )}
+                            </td>
+                            <td className="num">{s.source_row_number ?? '—'}</td>
+                            <td className="muted mono">
+                              {s.raw ? JSON.stringify(s.raw) : '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </Panel>
+                )}
+                <p>
+                  <Link href={`/orgs/${org.slug}/runs/${run.id}`}>
+                    Close drill-down
+                  </Link>
+                </p>
+              </>
+            )}
+          </>
+        )}
+
+        {hasVolumes && (
+          <>
+            <h2>Chain-linked volume measures</h2>
+            <ul className="meta">
+              <li>
+                <span className="k">Reference period</span>
+                <span className="v mono">{run.volume_reference_period_label}</span>
+              </li>
+              {run.volume_index_formula && (
+                <li>
+                  <span className="k">Index</span>
+                  <span className="v">{run.volume_index_formula}</span>
+                </li>
               )}
-              <p>
-                <Link href={`/orgs/${org.slug}/runs/${run.id}`}>Close drill-down</Link>
+            </ul>
+            <Panel scroll>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Period</th>
+                    <th className="num">Chain index</th>
+                    <th className="num">Volume</th>
+                    <th className="num">Growth %</th>
+                    <th className="num">Sum of industries</th>
+                    <th className="num">Residual</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {periods.map((p) => {
+                    const aggregate = volume(p, 'chain_linked_value');
+                    const residual = volume(p, 'non_additivity_residual');
+                    const componentSum =
+                      aggregate !== null && residual !== null
+                        ? String(Number(aggregate) - Number(residual))
+                        : null;
+                    return (
+                      <tr key={p}>
+                        <td className="mono">{p}</td>
+                        <td className="num">{fmt(volume(p, 'chain_index'))}</td>
+                        <td className="num">{fmt(aggregate)}</td>
+                        <td className="num">
+                          {fmt(volume(p, 'volume_growth_percent'))}
+                        </td>
+                        <td className="num">{fmt(componentSum)}</td>
+                        <td
+                          className={
+                            residual !== null && Number(residual) < 0
+                              ? 'num is-negative'
+                              : 'num'
+                          }
+                        >
+                          {fmt(residual)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </Panel>
+
+            {/* The brief is explicit that users report non-additivity as a bug.
+                This is the message that stops the support ticket being written. */}
+            <div className="callout is-note">
+              <p className="callout-title">
+                Why the industries do not add up to the total
               </p>
-            </>
-          )}
-        </>
-      )}
+              <p>
+                The <strong>Residual</strong> column is not an error and not a
+                rounding artefact. Chain-linked volumes are{' '}
+                <em>not additive</em>, and cannot be made additive without
+                misstating the components.
+              </p>
+              <p className="muted">
+                Each series is revalued at its own previous period&apos;s prices
+                before being linked, so every series carries a different set of
+                price weights. Adding series with different weights does not
+                give the aggregate, which carries the weights of the whole
+                economy. The parts do add up in the reference period, and in the
+                period immediately after it, and then diverge — which is why the
+                residual starts at zero and grows.
+              </p>
+              <p className="muted" style={{ marginBottom: 0 }}>
+                SNA 2008 chapter 15 treats this as a property of the measure,
+                and publishing the residual is standard practice among national
+                statistical offices. Forcing the components to sum would change
+                each industry&apos;s published volume to preserve an arithmetic
+                property the measure does not have. Current-price figures{' '}
+                <em>are</em> additive.
+              </p>
+            </div>
 
-      {hasVolumes && (
-        <>
-          <h2>Chain-linked volume measures</h2>
-          <p className="muted">
-            Reference period {run.volume_reference_period_label}
-            {run.volume_index_formula && <> · {run.volume_index_formula} index</>}
-            . Volumes are expressed in that period&apos;s price level, and the
-            chain index is 100 there.
-          </p>
-          <div className="card">
-            <table>
-              <thead>
-                <tr>
-                  <th>Period</th>
-                  <th>Chain index</th>
-                  <th>Volume</th>
-                  <th>Growth %</th>
-                  <th>Sum of industries</th>
-                  <th>Residual</th>
-                </tr>
-              </thead>
-              <tbody>
-                {periods.map((p) => {
-                  const aggregate = volume(p, 'chain_linked_value');
-                  const residual = volume(p, 'non_additivity_residual');
-                  const componentSum =
-                    aggregate !== null && residual !== null
-                      ? String(Number(aggregate) - Number(residual))
-                      : null;
-                  return (
-                    <tr key={p}>
-                      <td>{p}</td>
-                      <td>{fmt(volume(p, 'chain_index'))}</td>
-                      <td>{fmt(aggregate)}</td>
-                      <td>{fmt(volume(p, 'volume_growth_percent'))}</td>
-                      <td>{fmt(componentSum)}</td>
-                      <td>{fmt(residual)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/*
-            The brief is explicit that users report non-additivity as a bug.
-            This is the message that stops the support ticket being written.
-          */}
-          <div className="card">
-            <h3 style={{ marginTop: 0 }}>
-              Why the industries do not add up to the total
-            </h3>
-            <p>
-              The <strong>Residual</strong> column above is not an error and not
-              a rounding artefact. Chain-linked volumes are <em>not additive</em>
-              , and cannot be made additive without misstating the components.
-            </p>
-            <p className="muted">
-              Each series is revalued at its own previous period&apos;s prices
-              before being linked, so every series carries a different set of
-              price weights. Adding series with different weights does not give
-              the aggregate, which carries the weights of the whole economy. The
-              parts do add up in the reference period, and in the period
-              immediately after it, and then diverge — which is why the residual
-              starts at zero and grows.
-            </p>
-            <p className="muted">
-              SNA 2008 chapter 15 treats this as a property of the measure, and
-              publishing the residual is standard practice among national
-              statistical offices. The alternative — forcing the components to
-              sum — would change each industry&apos;s published volume to
-              preserve an arithmetic property the measure does not have.
-              Current-price figures, shown above, <em>are</em> additive.
-            </p>
-          </div>
-
-          {volumeIndustries.length > 0 && (
-            <>
-              <h3>Volume by industry</h3>
-              <div className="card">
+            {volumeIndustries.length > 0 && (
+              <Panel title="Volume by industry" scroll>
                 <table>
                   <thead>
                     <tr>
                       <th>Industry</th>
                       {periods.map((p) => (
-                        <th key={p}>{p}</th>
+                        <th key={p} className="num">
+                          {p}
+                        </th>
                       ))}
                     </tr>
                   </thead>
@@ -499,10 +602,11 @@ export default async function RunPage({
                     {volumeIndustries.map((industry) => (
                       <tr key={industry.activity_item_id}>
                         <td>
-                          {industry.activity_code} {industry.activity_name}
+                          <span className="mono">{industry.activity_code}</span>{' '}
+                          {industry.activity_name}
                         </td>
                         {periods.map((p) => (
-                          <td key={p}>
+                          <td key={p} className="num">
                             {fmt(
                               volume(p, 'chain_linked_value', industry.activity_item_id),
                             )}
@@ -512,174 +616,201 @@ export default async function RunPage({
                     ))}
                   </tbody>
                 </table>
-              </div>
-            </>
+              </Panel>
+            )}
+          </>
+        )}
+
+        <h2>Review and publication</h2>
+        {embargoActive && (
+          <div className="callout is-critical">
+            <p className="callout-title">
+              Embargoed until{' '}
+              {new Date(embargo!).toISOString().replace('T', ' ').slice(0, 16)}
+            </p>
+            <p className="muted" style={{ marginBottom: 0 }}>
+              Members of this organization can see these figures — compiling
+              them is the job. The embargo governs release to anyone else, and
+              every export is stamped until it lifts.
+            </p>
+          </div>
+        )}
+
+        <Panel>
+          <ul className="meta" style={{ marginBottom: '0.75rem' }}>
+            <li>
+              <span className="k">Status</span>
+              <span className="v">{run.status.replace('_', ' ')}</span>
+            </li>
+            {run.frozen_at && (
+              <li>
+                <span className="k">Vintage frozen</span>
+                <span className="v mono">
+                  {new Date(run.frozen_at).toISOString().slice(0, 10)}
+                </span>
+              </li>
+            )}
+            {run.published_at && (
+              <li>
+                <span className="k">Published</span>
+                <span className="v mono">
+                  {new Date(run.published_at).toISOString().slice(0, 10)}
+                </span>
+              </li>
+            )}
+          </ul>
+
+          {run.status === 'computed' && canCompile && (
+            <form action={submitForReview}>
+              <input type="hidden" name="slug" value={org.slug} />
+              <input type="hidden" name="runId" value={run.id} />
+              <button type="submit">Submit for review</button>
+            </form>
           )}
-        </>
-      )}
 
-      <h2>Review and publication</h2>
-      {embargoActive && (
-        <div className="card">
-          <p className="error" style={{ margin: 0, fontWeight: 600 }}>
-            Embargoed until {new Date(embargo!).toISOString().replace('T', ' ').slice(0, 16)}
-          </p>
-          <p className="muted" style={{ marginBottom: 0 }}>
-            Members of this organization can see these figures — compiling them
-            is the job. The embargo governs release to anyone else, and every
-            export is stamped until it lifts.
-          </p>
-        </div>
-      )}
-
-      <div className="card">
-        <p style={{ marginTop: 0 }}>
-          Status: <strong>{run.status}</strong>
-          {run.frozen_at && (
-            <>
-              {' · '}vintage frozen{' '}
-              {new Date(run.frozen_at).toISOString().slice(0, 10)}
-            </>
+          {run.status === 'under_review' && canReview && !isOwnWork && (
+            <form className="stack" action={reviewRun}>
+              <input type="hidden" name="slug" value={org.slug} />
+              <input type="hidden" name="runId" value={run.id} />
+              <label>
+                Decision
+                <select name="decision" defaultValue="approved">
+                  <option value="approved">
+                    Approve — freezes the input vintage
+                  </option>
+                  <option value="changes_requested">Request changes</option>
+                </select>
+              </label>
+              <label>
+                Note
+                <input
+                  name="note"
+                  required
+                  placeholder="What you checked, and what you concluded"
+                />
+              </label>
+              <button type="submit">Record decision</button>
+            </form>
           )}
-          {run.published_at && (
-            <>
-              {' · '}published{' '}
-              {new Date(run.published_at).toISOString().slice(0, 10)}
-            </>
+
+          {run.status === 'under_review' && canReview && isOwnWork && (
+            <p className="muted" style={{ marginBottom: 0 }}>
+              You created this run, so you cannot review it. Separation of
+              duties is the reason the reviewer role exists — ask another
+              reviewer.
+            </p>
           )}
-        </p>
 
-        {run.status === 'computed' && canCompile && (
-          <form action={submitForReview}>
-            <input type="hidden" name="slug" value={org.slug} />
-            <input type="hidden" name="runId" value={run.id} />
-            <button type="submit">Submit for review</button>
-          </form>
-        )}
+          {run.status === 'under_review' && !canReview && (
+            <p className="muted" style={{ marginBottom: 0 }}>
+              Awaiting a reviewer.
+            </p>
+          )}
 
-        {run.status === 'under_review' && canReview && !isOwnWork && (
-          <form className="stack" action={reviewRun}>
-            <input type="hidden" name="slug" value={org.slug} />
-            <input type="hidden" name="runId" value={run.id} />
-            <label>
-              Decision
-              <select name="decision" defaultValue="approved">
-                <option value="approved">Approve — freezes the input vintage</option>
-                <option value="changes_requested">Request changes</option>
-              </select>
-            </label>
-            <label>
-              Note (required)
-              <input name="note" required placeholder="What you checked, and what you concluded" />
-            </label>
-            <button type="submit">Record decision</button>
-          </form>
-        )}
+          {run.status === 'approved' && role === 'admin' && (
+            <form className="stack" action={publishRun}>
+              <input type="hidden" name="slug" value={org.slug} />
+              <input type="hidden" name="runId" value={run.id} />
+              <label>
+                Embargo until (optional)
+                <input type="datetime-local" name="embargoUntil" />
+              </label>
+              <button type="submit">Publish</button>
+            </form>
+          )}
 
-        {run.status === 'under_review' && canReview && isOwnWork && (
-          <p className="muted">
-            You created this run, so you cannot review it. Separation of duties
-            is the reason the reviewer role exists — ask another reviewer.
-          </p>
-        )}
+          {run.status === 'approved' && role !== 'admin' && (
+            <p className="muted" style={{ marginBottom: 0 }}>
+              Approved. An admin can publish it.
+            </p>
+          )}
+        </Panel>
 
-        {run.status === 'under_review' && !canReview && (
-          <p className="muted">Awaiting a reviewer.</p>
-        )}
-
-        {run.status === 'approved' && role === 'admin' && (
-          <form className="stack" action={publishRun}>
-            <input type="hidden" name="slug" value={org.slug} />
-            <input type="hidden" name="runId" value={run.id} />
-            <label>
-              Embargo until (optional)
-              <input type="datetime-local" name="embargoUntil" />
-            </label>
-            <button type="submit">Publish</button>
-          </form>
-        )}
-
-        {run.status === 'approved' && role !== 'admin' && (
-          <p className="muted">Approved. An admin can publish it.</p>
-        )}
-      </div>
-
-      {reviews.length > 0 && (
-        <div className="card">
-          <table>
-            <thead>
-              <tr>
-                <th>Decision</th>
-                <th>Reviewer</th>
-                <th>When</th>
-                <th>Note</th>
-              </tr>
-            </thead>
-            <tbody>
-              {reviews.map((r, i) => (
-                <tr key={i}>
-                  <td className={r.decision === 'approved' ? undefined : 'error'}>
-                    {r.decision === 'approved' ? 'approved' : 'changes requested'}
-                  </td>
-                  <td>{r.email ?? 'unknown'}</td>
-                  <td>{new Date(r.decided_at).toISOString().slice(0, 10)}</td>
-                  <td>{r.note}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {results.length > 0 && (
-        <>
-          <h3>Export</h3>
-          <p>
-            <a href={`/orgs/${org.slug}/runs/${run.id}/export/sdmx-csv`}>
-              SDMX-CSV
-            </a>
-            {' · '}
-            <a href={`/orgs/${org.slug}/runs/${run.id}/export/xlsx`}>Excel</a>
-          </p>
-          <p className="muted">
-            Exports carry the run&apos;s provenance: input vintage, freeze time,
-            pinned engine version and method configuration, and the SHA-256 of
-            every source file behind the figures.
-            {embargoActive && ' Both formats are stamped EMBARGOED until the release time.'}
-          </p>
-        </>
-      )}
-
-      {diagnostics.length > 0 && (
-        <>
-          <h2>Diagnostics</h2>
-          <div className="card">
+        {reviews.length > 0 && (
+          <Panel title="Review history" scroll>
             <table>
               <thead>
                 <tr>
-                  <th>Period</th>
-                  <th>Severity</th>
-                  <th>Finding</th>
+                  <th>Decision</th>
+                  <th>Reviewer</th>
+                  <th>When</th>
+                  <th>Note</th>
                 </tr>
               </thead>
               <tbody>
-                {diagnostics.map((d, i) => (
+                {reviews.map((r, i) => (
                   <tr key={i}>
-                    <td>{d.period_label ?? '—'}</td>
-                    <td>{d.severity}</td>
                     <td>
-                      <strong>{d.code}</strong>
-                      {d.subject && <span className="muted"> · {d.subject}</span>}
-                      <br />
-                      <span className="muted">{d.message}</span>
+                      <span
+                        className={
+                          r.decision === 'approved'
+                            ? 'pill is-positive'
+                            : 'pill is-warning'
+                        }
+                      >
+                        {r.decision === 'approved' ? 'approved' : 'changes requested'}
+                      </span>
                     </td>
+                    <td className="mono">{r.email ?? 'unknown'}</td>
+                    <td className="mono muted">
+                      {new Date(r.decided_at).toISOString().slice(0, 10)}
+                    </td>
+                    <td>{r.note}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-        </>
-      )}
-    </main>
+          </Panel>
+        )}
+
+        {results.length > 0 && (
+          <p className="muted">
+            Exports carry the run&apos;s provenance: input vintage, freeze time,
+            pinned engine version and method configuration, and the SHA-256 of
+            every source file behind the figures.
+            {embargoActive &&
+              ' Both formats are stamped EMBARGOED until the release time.'}
+          </p>
+        )}
+
+        {diagnostics.length > 0 && (
+          <>
+            <h2>Diagnostics</h2>
+            <Panel scroll>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Finding</th>
+                    <th>Period</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {diagnostics.map((d, i) => (
+                    <tr key={i} className={`sev-${d.severity}`}>
+                      <td>
+                        <span className="mono">{d.code}</span>{' '}
+                        <span
+                          className={
+                            d.severity === 'warning' ? 'pill is-warning' : 'pill'
+                          }
+                        >
+                          {d.severity}
+                        </span>
+                        {d.subject && (
+                          <span className="muted"> · {d.subject}</span>
+                        )}
+                        <br />
+                        <span className="muted">{d.message}</span>
+                      </td>
+                      <td className="mono muted">{d.period_label ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Panel>
+          </>
+        )}
+      </main>
+    </>
   );
 }

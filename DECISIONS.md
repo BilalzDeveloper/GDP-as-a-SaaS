@@ -452,3 +452,29 @@ expensive to have shipped silently.
 **Alternatives:** not exporting SDMX at all until it can be validated (the
 brief asks for it, and the shape is useful now); claiming conformance
 (indefensible).
+
+## D32 — System font stacks, not a webfont CDN
+**Decision:** The interface uses three system stacks (serif for headings,
+sans for interface text, mono for codes and figures) defined as CSS custom
+properties in `src/app/globals.css`. No webfont is fetched at build time or
+at runtime.
+**Why:** Two reasons, one practical and one about the audience. Practically,
+`next/font/google` resolves fonts at build time, so a build in a network-
+restricted environment fails outright — a deployment pipeline that depends
+on a third-party CDN being reachable is a fragile pipeline for software an
+NSO runs. More importantly, embedding Google Fonts transmits the visitor's
+IP address to a third party; that has been litigated under the GDPR
+(LG München I, 3 O 17493/20, January 2022) and several European public
+bodies now prohibit it by policy. A platform sold to statistical offices
+should not create a data-protection question on the first page load.
+**Consequence:** headings render as Iowan Old Style, Palatino or Georgia
+depending on the machine, so the exact face varies between users. That is
+acceptable: the typographic *roles* are stable, which is what carries the
+design.
+**Upgrade path:** self-host the IBM Plex superfamily (Serif, Sans, Mono —
+OFL licensed, designed for exactly this kind of data-dense institutional
+interface). Drop the woff2 files into `public/fonts`, add `@font-face`
+rules, and prepend the families to the three stacks. Nothing else changes.
+**Alternatives:** a webfont CDN (rejected above); a single family across all
+three roles (loses the distinction between published output and interface
+chrome, which is doing real work here).

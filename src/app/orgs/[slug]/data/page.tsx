@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import { sql } from 'drizzle-orm';
 import { withRls } from '@/db/rls';
 import { getVerifiedClaims } from '@/lib/supabase/server';
+import { OrgShell, Panel } from '@/components/shell';
 import { uploadDataset } from './actions';
 
 export const dynamic = 'force-dynamic';
@@ -18,13 +19,13 @@ type DatasetRow = {
   error_count: number;
 };
 
-const STATUS_LABEL: Record<string, string> = {
-  uploaded: 'Uploaded',
-  parsed: 'Parsed — needs mapping',
-  mapped: 'Mapped',
-  validated: 'Validated',
-  committed: 'Committed',
-  discarded: 'Discarded',
+const STATUS: Record<string, { label: string; tone: string }> = {
+  uploaded: { label: 'Uploaded', tone: 'pill' },
+  parsed: { label: 'Needs mapping', tone: 'pill is-warning' },
+  mapped: { label: 'Mapped', tone: 'pill' },
+  validated: { label: 'Validated', tone: 'pill is-accent' },
+  committed: { label: 'Committed', tone: 'pill is-positive' },
+  discarded: { label: 'Discarded', tone: 'pill' },
 };
 
 export default async function DataPage({
@@ -62,84 +63,116 @@ export default async function DataPage({
   if (!data) notFound();
 
   return (
-    <main>
-      <p>
-        <Link href={`/orgs/${data.org.slug}`}>← {data.org.name}</Link>
-      </p>
-      <h1>Source data</h1>
-      {error && <p className="error">{error}</p>}
+    <>
+      <OrgShell
+        slug={data.org.slug}
+        orgName={data.org.name}
+        email={claims.email}
+        current="data"
+      />
+      <main>
+        <h1>Source data</h1>
+        <p className="lede">
+          Uploaded surveys, administrative records and statistical extracts.
+          Each file is stored with its checksum, so a committed figure always
+          traces back to the exact bytes it came from.
+        </p>
 
-      {data.periodCount === 0 && (
-        <div className="card">
-          <p className="muted">
-            This organization has no reference periods defined yet, so no row
-            will resolve to a period. Periods carry the fiscal-year convention,
-            which differs by country — they are created per organization.
-          </p>
-        </div>
-      )}
+        {error && (
+          <div className="callout is-critical">
+            <p className="error" style={{ margin: 0 }}>
+              {error}
+            </p>
+          </div>
+        )}
 
-      <h2>Upload a file</h2>
-      <form className="stack" action={uploadDataset} encType="multipart/form-data">
-        <input type="hidden" name="slug" value={data.org.slug} />
-        <label>
-          File (.csv or .xlsx, up to 10 MB)
-          <input type="file" name="file" accept=".csv,.tsv,.txt,.xlsx,.xlsm" required />
-        </label>
-        <label>
-          Name
-          <input name="name" placeholder="e.g. Annual business survey 2024" />
-        </label>
-        <label>
-          Provenance — where this came from
-          <input name="provenance" placeholder="e.g. ABS extract, run 2026-03-14" />
-        </label>
-        <button type="submit">Upload</button>
-      </form>
-      <p className="muted">
-        The file is stored with a SHA-256 checksum, so a committed figure can
-        always be traced back to the exact bytes it came from.
-      </p>
+        {data.periodCount === 0 && (
+          <div className="callout is-warning">
+            <p className="callout-title">No reference periods defined</p>
+            <p className="muted" style={{ margin: 0 }}>
+              No uploaded row will resolve to a period until they exist. Periods
+              carry the fiscal-year convention, which differs by country, so
+              they are defined per organization.
+            </p>
+          </div>
+        )}
 
-      <h2>Datasets</h2>
-      {data.datasets.length === 0 ? (
-        <p className="muted">Nothing uploaded yet.</p>
-      ) : (
-        <div className="card">
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Rows</th>
-                <th>Status</th>
-                <th>Uploaded</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.datasets.map((d) => (
-                <tr key={d.id}>
-                  <td>
-                    <Link href={`/orgs/${data.org.slug}/data/${d.id}`}>{d.name}</Link>
-                    <br />
-                    <span className="muted">{d.original_filename}</span>
-                  </td>
-                  <td>{d.row_count ?? '—'}</td>
-                  <td>
-                    {STATUS_LABEL[d.status] ?? d.status}
-                    {d.error_count > 0 && (
-                      <>
-                        <br />
-                        <span className="error">{d.error_count} error(s)</span>
-                      </>
-                    )}
-                  </td>
-                  <td>{new Date(d.uploaded_at).toISOString().slice(0, 10)}</td>
+        <h2>Datasets</h2>
+        {data.datasets.length === 0 ? (
+          <p className="empty">Nothing uploaded yet.</p>
+        ) : (
+          <Panel scroll>
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th className="num">Rows</th>
+                  <th>Status</th>
+                  <th>Uploaded</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </main>
+              </thead>
+              <tbody>
+                {data.datasets.map((d) => {
+                  const status = STATUS[d.status] ?? {
+                    label: d.status,
+                    tone: 'pill',
+                  };
+                  return (
+                    <tr key={d.id}>
+                      <td>
+                        <Link href={`/orgs/${data.org.slug}/data/${d.id}`}>
+                          {d.name}
+                        </Link>
+                        <br />
+                        <span className="muted mono">{d.original_filename}</span>
+                      </td>
+                      <td className="num">{d.row_count ?? '—'}</td>
+                      <td>
+                        <span className={status.tone}>{status.label}</span>
+                        {d.error_count > 0 && (
+                          <>
+                            {' '}
+                            <span className="pill is-critical">
+                              {d.error_count} error
+                              {d.error_count === 1 ? '' : 's'}
+                            </span>
+                          </>
+                        )}
+                      </td>
+                      <td className="mono muted">
+                        {new Date(d.uploaded_at).toISOString().slice(0, 10)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </Panel>
+        )}
+
+        <h2>Upload a file</h2>
+        <form className="stack" action={uploadDataset} encType="multipart/form-data">
+          <input type="hidden" name="slug" value={data.org.slug} />
+          <label>
+            File — .csv or .xlsx, up to 10 MB
+            <input
+              type="file"
+              name="file"
+              accept=".csv,.tsv,.txt,.xlsx,.xlsm"
+              required
+            />
+          </label>
+          <label>
+            Name
+            <input name="name" placeholder="Annual business survey 2024" />
+          </label>
+          <label>
+            Provenance — where this came from
+            <input name="provenance" placeholder="ABS extract, run 2026-03-14" />
+          </label>
+          <button type="submit">Upload</button>
+        </form>
+      </main>
+    </>
   );
 }

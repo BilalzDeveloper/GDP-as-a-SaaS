@@ -1,8 +1,8 @@
-import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { eq, sql } from 'drizzle-orm';
 import { withRls, schema } from '@/db/rls';
 import { getVerifiedClaims } from '@/lib/supabase/server';
+import { OrgShell, Panel } from '@/components/shell';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,10 +29,16 @@ type MappingRow = {
 // Deliberately explicit wording: a compiler must never mistake transcribed
 // reference data for data verified against the official publication, and must
 // never assume a version goes deeper than it does. See docs/reference-data.md.
-const PROVENANCE_LABEL: Record<VersionRow['provenance'], string> = {
-  official_file: 'Official file (checksum recorded)',
-  transcribed_pending_verification: 'Transcribed — awaiting verification',
-  tenant_defined: 'Defined by this organization',
+const PROVENANCE: Record<
+  VersionRow['provenance'],
+  { label: string; tone: string }
+> = {
+  official_file: { label: 'Official file', tone: 'pill is-positive' },
+  transcribed_pending_verification: {
+    label: 'Awaiting verification',
+    tone: 'pill is-warning',
+  },
+  tenant_defined: { label: 'Defined here', tone: 'pill' },
 };
 
 const LEVEL_NAME: Record<string, string[]> = {
@@ -42,7 +48,7 @@ const LEVEL_NAME: Record<string, string[]> = {
 
 function depthLabel(code: string, level: number) {
   const names = LEVEL_NAME[code];
-  return names?.[level - 1] ? `${names[level - 1]} level` : `level ${level}`;
+  return names?.[level - 1] ? `to ${names[level - 1]}` : `to level ${level}`;
 }
 
 export default async function ClassificationsPage({
@@ -88,110 +94,154 @@ export default async function ClassificationsPage({
   const { org, versions, mappings } = data;
   const standards = versions.filter((v) => v.owner_org_id === null);
   const own = versions.filter((v) => v.owner_org_id !== null);
+  const unverified = standards.filter(
+    (v) => v.provenance === 'transcribed_pending_verification',
+  ).length;
 
   return (
-    <main>
-      <p>
-        <Link href={`/orgs/${org.slug}`}>← {org.name}</Link>
-      </p>
-      <h1>Classifications</h1>
-
-      <h2>Standards</h2>
-      <div className="card">
-        <table>
-          <thead>
-            <tr>
-              <th>Classification</th>
-              <th>Version</th>
-              <th>Items</th>
-              <th>Depth</th>
-              <th>Provenance</th>
-            </tr>
-          </thead>
-          <tbody>
-            {standards.map((v) => (
-              <tr key={`${v.classification_code}-${v.version_label}`}>
-                <td title={v.classification_name}>{v.classification_code}</td>
-                <td>{v.version_label}</td>
-                <td>{v.item_count}</td>
-                <td>{depthLabel(v.classification_code, v.seeded_to_level)}</td>
-                <td>{PROVENANCE_LABEL[v.provenance]}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <p className="muted">
-        Versions marked <em>awaiting verification</em> were transcribed from the
-        published structure and have not yet been diffed against the official
-        file. Depth is the deepest level present — a classification shown at
-        division level does not contain groups or classes yet.
-      </p>
-
-      <h2>This organization&apos;s classifications</h2>
-      {own.length === 0 ? (
-        <p className="muted">
-          None yet. National adaptations are defined here and mapped onto the
-          standards above.
+    <>
+      <OrgShell
+        slug={org.slug}
+        orgName={org.name}
+        email={claims.email}
+        current="classifications"
+      />
+      <main>
+        <h1>Classifications</h1>
+        <p className="lede">
+          The standards every compilation is expressed in, and this
+          organization&apos;s own national adaptations mapped onto them.
         </p>
-      ) : (
-        <div className="card">
+
+        {unverified > 0 && (
+          <div className="callout is-warning">
+            <p className="callout-title">
+              {unverified} classification{unverified === 1 ? '' : 's'} awaiting
+              verification
+            </p>
+            <p className="muted" style={{ margin: 0 }}>
+              These were transcribed from the published structure and have not
+              yet been diffed against the official file. Load the official file
+              to verify them — until then, treat the codes as provisional.
+            </p>
+          </div>
+        )}
+
+        <Panel title="Standards" scroll>
           <table>
             <thead>
               <tr>
                 <th>Classification</th>
                 <th>Version</th>
-                <th>Items</th>
+                <th className="num">Items</th>
                 <th>Depth</th>
+                <th>Provenance</th>
               </tr>
             </thead>
             <tbody>
-              {own.map((v) => (
+              {standards.map((v) => (
                 <tr key={`${v.classification_code}-${v.version_label}`}>
-                  <td title={v.classification_name}>{v.classification_code}</td>
-                  <td>{v.version_label}</td>
-                  <td>{v.item_count}</td>
-                  <td>{depthLabel(v.classification_code, v.seeded_to_level)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      <h2>Mappings</h2>
-      {mappings.length === 0 ? (
-        <p className="muted">
-          No mappings yet. A mapping relates one of this organization&apos;s
-          classifications to a standard, and must pass validation before it can
-          be activated.
-        </p>
-      ) : (
-        <div className="card">
-          <table>
-            <thead>
-              <tr>
-                <th>Mapping</th>
-                <th>Entries</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {mappings.map((m) => (
-                <tr key={m.id}>
-                  <td>{m.name}</td>
-                  <td>{m.entry_count}</td>
                   <td>
-                    {m.activated_at
-                      ? `Active since ${new Date(m.activated_at).toISOString().slice(0, 10)}`
-                      : 'Draft — not yet validated'}
+                    <span className="mono">{v.classification_code}</span>
+                    <br />
+                    <span className="muted">{v.classification_name}</span>
+                  </td>
+                  <td className="mono">{v.version_label}</td>
+                  <td className="num">{v.item_count}</td>
+                  <td className="muted">
+                    {depthLabel(v.classification_code, v.seeded_to_level)}
+                  </td>
+                  <td>
+                    <span className={PROVENANCE[v.provenance].tone}>
+                      {PROVENANCE[v.provenance].label}
+                    </span>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
-      )}
-    </main>
+        </Panel>
+        <p className="muted">
+          Depth is the deepest level present — a classification shown to
+          division level does not contain groups or classes yet.
+        </p>
+
+        <h2>This organization&apos;s classifications</h2>
+        {own.length === 0 ? (
+          <p className="empty">
+            None yet. National adaptations are defined here and mapped onto the
+            standards above.
+          </p>
+        ) : (
+          <Panel scroll>
+            <table>
+              <thead>
+                <tr>
+                  <th>Classification</th>
+                  <th>Version</th>
+                  <th className="num">Items</th>
+                  <th>Depth</th>
+                </tr>
+              </thead>
+              <tbody>
+                {own.map((v) => (
+                  <tr key={`${v.classification_code}-${v.version_label}`}>
+                    <td>
+                      <span className="mono">{v.classification_code}</span>
+                      <br />
+                      <span className="muted">{v.classification_name}</span>
+                    </td>
+                    <td className="mono">{v.version_label}</td>
+                    <td className="num">{v.item_count}</td>
+                    <td className="muted">
+                      {depthLabel(v.classification_code, v.seeded_to_level)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Panel>
+        )}
+
+        <h2>Mappings</h2>
+        {mappings.length === 0 ? (
+          <p className="empty">
+            No mappings yet. A mapping relates one of this organization&apos;s
+            classifications to a standard, and must pass validation before it
+            can be activated.
+          </p>
+        ) : (
+          <Panel scroll>
+            <table>
+              <thead>
+                <tr>
+                  <th>Mapping</th>
+                  <th className="num">Entries</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mappings.map((m) => (
+                  <tr key={m.id}>
+                    <td>{m.name}</td>
+                    <td className="num">{m.entry_count}</td>
+                    <td>
+                      {m.activated_at ? (
+                        <span className="pill is-positive">
+                          Active since{' '}
+                          {new Date(m.activated_at).toISOString().slice(0, 10)}
+                        </span>
+                      ) : (
+                        <span className="pill is-warning">Draft</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Panel>
+        )}
+      </main>
+    </>
   );
 }
