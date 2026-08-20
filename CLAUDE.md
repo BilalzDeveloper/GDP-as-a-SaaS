@@ -93,14 +93,20 @@ Stop after each milestone. Show me what changed and what you'd do next.
 The plan responding to this brief lives in [`PLAN.md`](PLAN.md) (stack
 assessment, milestone 1–3 schema in [`db/schema-proposal.sql`](db/schema-proposal.sql),
 risk analysis, fixture choice). It was **approved on 2026-08-18** and
-**milestone 1 is complete** — see "Milestone 1 — delivered" in `PLAN.md`.
-Recorded choices live in [`DECISIONS.md`](DECISIONS.md); add to it whenever you
-make a methodological or architectural decision.
+**all eight milestones are complete** — see the "Milestone N — delivered"
+sections in `PLAN.md`. Recorded choices live in
+[`DECISIONS.md`](DECISIONS.md); add to it whenever you make a methodological
+or architectural decision.
 
 Working rules for sessions on this repo:
 
-- **Milestone 2 (reference data) is next.** Stop at the end of each milestone
-  and report, per the brief — do not run ahead into later milestones.
+- **The milestones are done; work now is extension or correction.** Three
+  caveats are outstanding and are marked in the data and the code, not just in
+  prose: classification seeds are transcribed rather than downloaded (D12), the
+  engine is internally consistent but has never been checked against published
+  national accounts (D16), and the SDMX-CSV output has not been through a
+  validator (D31). Removing any of them needs network access this environment
+  does not have. Do not quietly drop the caveats.
 - **`supabase/migrations/*.sql` is the schema source of truth.** Never edit an
   applied migration; add a new numbered one. Keep `src/db/schema.ts` in sync.
 - **All tenant queries go through `withRls()`** (`src/db/rls.ts`). No app
@@ -110,3 +116,7 @@ Working rules for sessions on this repo:
   same change.
 - Local test database: `bash scripts/test-db.sh`, then
   `DATABASE_URL=... npm test`. See [`README.md`](README.md).
+- **The engine stays pure.** `src/engine/` imports nothing outside itself —
+  no database, no npm dependency, no I/O. `tests/engine/purity.test.ts`
+  enforces it. Every function cites the SNA 2008 paragraph or standard
+  practice it implements.

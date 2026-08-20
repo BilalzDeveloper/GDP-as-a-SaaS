@@ -5,18 +5,28 @@ National Accounts (SNA 2008): National Statistical Offices and researchers
 upload source data, map it to standard classifications, and compute GDP by all
 three approaches with full audit trails and reproducible vintages.
 
-**Status: milestones 1–7 complete, pending a live deployment.** Auth,
-organizations, roles, the audit trail and Row-Level Security; the
-reference-data layer (ISIC, CPC, COICOP, COFOG, SNA institutional sectors)
-with a tenant mapping layer; the calculation engine — all three GDP approaches
-at current prices, pure and dependency-free; data intake — CSV/XLSX
-upload, column mapping, validation and staged commit into append-only
-vintages; and the compilation workflow — runs that pin their vintage and
-method version, execute the engine, report the discrepancy between approaches
-and drill down to source records; and volume measures — deflation, index
-numbers and chain-linking by annual overlap; and review and publication —
-reviewer approval with separation of duties, vintage freezing, embargo, and
-SDMX-CSV and Excel export. 403 tests run in CI.
+**Status: all eight milestones complete, pending a live deployment.**
+
+- **Foundations** — auth, organizations, roles, the audit trail and Row-Level
+  Security enforced in the database.
+- **Reference data** — ISIC, CPC, COICOP, COFOG and the SNA institutional
+  sectors, with a tenant mapping layer for national adaptations.
+- **Calculation engine** — all three GDP approaches at current prices, pure
+  and dependency-free, every function citing what it implements.
+- **Data intake** — CSV/XLSX upload, column mapping, validation and staged
+  commit into append-only vintages.
+- **Compilation workflow** — runs that pin their vintage and method version,
+  execute the engine, report the discrepancy between approaches, and drill
+  down from an aggregate to the source records behind it.
+- **Volume measures** — deflation, Laspeyres/Paasche/Fisher indices, and
+  chain-linking by annual overlap.
+- **Review and publication** — reviewer approval with separation of duties,
+  vintage freezing, embargo, and SDMX-CSV and Excel export.
+- **Quarterly accounts** — quarterly compilation benchmarked to the annual
+  accounts by the Denton method, with the reconciliation stored and the
+  extrapolated quarters flagged.
+
+456 tests run in CI.
 
 Three caveats worth knowing before relying on output, each marked in the data
 or the code rather than only here: the classification seeds are transcribed
@@ -47,6 +57,9 @@ to close.
   chain-linking, and why chained volumes do not add up
 - [`docs/publication.md`](docs/publication.md) — the review workflow, who can
   do what, embargo handling and the export formats
+- [`docs/quarterly-accounts.md`](docs/quarterly-accounts.md) — quarterly
+  compilation, why benchmarking exists, the Denton variants, and what is
+  deliberately not done (seasonal adjustment)
 - [`DEPLOYMENT.md`](DEPLOYMENT.md) — Supabase + Vercel setup (needs owner
   credentials)
 - [`CLAUDE.md`](CLAUDE.md) — the original project brief
@@ -63,14 +76,15 @@ seeds/              reference data as CSV (classifications, codes, countries)
 scripts/            migrations, seeding, official-file loader, scale spike
 src/engine/         pure SNA 2008 calculation engine (no DB, no deps)
 src/intake/         upload parsing, column mapping, validation rules
-src/compile/        observation-to-engine assembler and run execution
+src/compile/        assembler, run execution, quarterly benchmarking
 src/export/         SDMX-CSV and Excel exporters
 src/components/     the application shell (identity bar, section nav, panels)
 tests/rls/          adversarial tenant-isolation suite
 tests/reference/    reference-data isolation and seed integrity
 tests/engine/       engine identities, invariants, fixtures and purity
 tests/intake/       number parsing, xlsx/csv, validation rules, intake end-to-end
-tests/compile/      assembler, execution, reproducibility, drill-down
+tests/compile/      assembler, execution, reproducibility, drill-down,
+                    quarterly benchmarking end to end
 tests/review/       review workflow, role gating, embargo, exports
 ```
 

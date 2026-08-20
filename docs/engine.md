@@ -6,9 +6,20 @@ dependencies, no environment access. A test (`tests/engine/purity.test.ts`)
 enforces that mechanically, because the property is easy to state and easy to
 erode with one convenient import.
 
-Scope today is **current prices only**. Volume measures, deflation and
-chain-linking are milestone 6; quarterly compilation and Denton benchmarking
-are milestone 8.
+The engine now covers all eight milestones' worth of calculation:
+
+- **Current prices**, all three approaches, with reconciliation and the
+  statistical discrepancy (this document).
+- **Volume measures** — deflation, index numbers, chain-linking by annual
+  overlap. See [`volume-measures.md`](volume-measures.md).
+- **Temporal benchmarking** — Denton first-difference, both variants, for
+  reconciling quarterly series to annual totals. See
+  [`quarterly-accounts.md`](quarterly-accounts.md).
+
+Everything stays inside the purity boundary, including the linear solver
+benchmarking needs — `solveLinearSystem` in `numeric.ts` is written out rather
+than pulled from a matrix library, so the arithmetic a statistician would want
+to audit stays in the repo.
 
 ## Status: internally consistent, not yet externally validated
 
@@ -110,6 +121,9 @@ multiplier is explicit for this reason.
 | FISIM | `allocated` — SNA 2008: the portion consumed by producers is intermediate (GDP-neutral), the portion consumed by households, government and non-residents is final use (raises GDP) | `unallocated` — SNA 1993 convention: the whole of FISIM is intermediate consumption of a nominal industry and contributes nothing to GDP. Callers choosing this must also exclude FISIM from final consumption. |
 | Balancing anchor | `production` when available | `expenditure`, `income`, or `none` (report all three, publish no headline). Full supply-and-use balancing is out of scope until milestone 5. |
 | Discrepancy warning | 1% of the headline | any threshold via `discrepancyWarningThreshold` |
+| Chain-linking | annual overlap (D25) | one-quarter overlap, over-the-year linking — identical for annual data |
+| Benchmarking | Denton proportional first-difference (D33) | Denton additive, for series that cross zero. Second-difference forms and Cholette–Dagum are not implemented. |
+| Seasonal adjustment | **not implemented** (D36) | X-13ARIMA-SEATS or TRAMO/SEATS, outside this engine |
 
 The engine **never** reconciles the approaches by adjusting them. It reports
 what each says and quantifies the gap. Averaging or forcing agreement would

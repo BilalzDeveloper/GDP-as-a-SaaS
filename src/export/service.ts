@@ -29,6 +29,7 @@ interface ResultRow {
   approach: string;
   measure: string;
   price_basis: string;
+  benchmarked: boolean;
   activity_code: string | null;
   activity_name: string | null;
   transaction_code: string | null;
@@ -55,7 +56,7 @@ async function load(claims: RlsClaims, runId: string) {
 
     const results = (await tx.execute(sql`
       select p.label as period_label, cr.approach::text as approach, cr.measure,
-             cr.price_basis::text as price_basis,
+             cr.price_basis::text as price_basis, cr.benchmarked,
              ci.code as activity_code, ci.name as activity_name,
              null::text as transaction_code, null::text as unit_code,
              cr.value
@@ -63,7 +64,7 @@ async function load(claims: RlsClaims, runId: string) {
         join reference_period p on p.id = cr.period_id
         left join classification_item ci on ci.id = cr.activity_item_id
        where cr.run_id = ${runId}::uuid
-       order by p.start_date, cr.price_basis, cr.approach,
+       order by p.start_date, cr.price_basis, cr.benchmarked, cr.approach,
                 ci.sort_order nulls first, cr.measure
     `)) as unknown as ResultRow[];
 
@@ -103,6 +104,7 @@ export async function exportSdmxCsv(
     transaction: r.transaction_code ?? '',
     activity: r.activity_code ?? '',
     priceBasis: r.price_basis,
+    benchmarked: r.benchmarked,
     unit: r.unit_code ?? '',
     measure: r.measure,
     value: r.value === null ? null : Number(r.value),
@@ -158,6 +160,7 @@ export async function exportExcel(
     activityCode: r.activity_code,
     activityName: r.activity_name,
     priceBasis: r.price_basis,
+    benchmarked: r.benchmarked,
     value: r.value === null ? null : Number(r.value),
   }));
 

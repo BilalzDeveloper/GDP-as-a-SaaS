@@ -9,6 +9,7 @@ import { sql } from 'drizzle-orm';
 import { withRls, type RlsClaims, type Tx } from '@/db/rls';
 import { compileGdp, ENGINE_VERSION, type BalancingAnchor } from '@/engine';
 import { assembleRun, type ObservationRow } from './assemble';
+import { benchmarkRun, BenchmarkingError, variantFor } from './benchmark';
 import { MEASURE } from './measures';
 import { computeVolumes, VolumeError } from './volumes';
 
@@ -93,6 +94,14 @@ export interface ExecutionSummary {
     maxResidualPercent: number;
     referencePeriodLabel: string;
   } | null;
+  /** Null when the run is annual, or no annual benchmark was chosen. */
+  benchmarking: {
+    variant: string;
+    seriesBenchmarked: number;
+    constraintsApplied: number;
+    maxAdjustmentPercent: number;
+    extrapolatedPeriods: string[];
+  } | null;
 }
 
 /**
@@ -108,15 +117,19 @@ export async function executeRun(
 ): Promise<ExecutionSummary> {
   const run = await withRls(claims, {}, async (tx) => {
     const rows = (await tx.execute(sql`
-      select id, input_vintage_id, anchor_approach, status,
-             volume_reference_period_label
+      select id, input_vintage_id, anchor_approach, status, frequency::text,
+             volume_reference_period_label, benchmark_source_run_id,
+             benchmark_method
         from compilation_run where id = ${runId}::uuid
     `)) as unknown as {
       id: string;
       input_vintage_id: string;
       anchor_approach: BalancingAnchor;
       status: string;
+      frequency: 'annual' | 'quarterly';
       volume_reference_period_label: string | null;
+      benchmark_source_run_id: string | null;
+      benchmark_method: string;
     }[];
     return rows[0];
   });
@@ -141,7 +154,16 @@ export async function executeRun(
           );
         }
 
-        const config = { anchor: run.anchor_approach, discrepancyWarningThreshold: 0.01 };
+        // Everything that changes a computed figure goes into the pinned
+        // method version, so re-executing with a different benchmark source
+        // or variant is visibly a different method (non-negotiable 1).
+        const config = {
+          anchor: run.anchor_approach,
+          discrepancyWarningThreshold: 0.01,
+          frequency: run.frequency,
+          benchmarkMethod: run.benchmark_source_run_id ? run.benchmark_method : 'none',
+          benchmarkSourceRunId: run.benchmark_source_run_id,
+        };
         const methodVersionId = await pinMethodVersion(tx, config);
 
         // Results are replaced wholesale: a re-execution supersedes the
@@ -172,7 +194,7 @@ export async function executeRun(
                     ${approach}::compilation_approach, ${measure},
                     ${activityItemId}::uuid, 'current'::price_basis, ${value})
             on conflict (run_id, period_id, approach, measure, activity_item_id,
-                         price_basis)
+                         price_basis, benchmarked)
             do update set value = excluded.value
           `);
           resultsWritten++;
@@ -334,6 +356,46 @@ export async function executeRun(
           }
         }
 
+        // Benchmarking, once the current-price results it reconciles exist.
+        let benchmarking: ExecutionSummary['benchmarking'] = null;
+        const variant = variantFor(run.benchmark_method);
+        if (run.frequency === 'quarterly' && run.benchmark_source_run_id && variant) {
+          try {
+            const summary = await benchmarkRun(
+              tx, orgId, runId, run.benchmark_source_run_id, variant,
+            );
+            if (summary) {
+              for (const d of summary.diagnostics) {
+                await writeDiagnostic(
+                  d.periodId, d.severity, d.code, d.message, d.subject,
+                );
+              }
+              benchmarking = {
+                variant: summary.variant,
+                seriesBenchmarked: summary.seriesBenchmarked,
+                constraintsApplied: summary.constraintsApplied,
+                maxAdjustmentPercent: summary.maxAdjustmentPercent,
+                extrapolatedPeriods: summary.extrapolatedPeriods,
+              };
+            }
+          } catch (e) {
+            if (e instanceof BenchmarkingError) {
+              await writeDiagnostic(
+                null, 'warning', 'benchmark_unavailable', e.message, 'benchmarking',
+              );
+            } else throw e;
+          }
+        } else if (run.frequency === 'quarterly' && !run.benchmark_source_run_id) {
+          await writeDiagnostic(
+            null, 'info', 'not_benchmarked',
+            'These quarterly figures are not benchmarked to annual totals. ' +
+              'Until an annual run is chosen as the benchmark, the four ' +
+              'quarters of a year are not guaranteed to sum to the annual ' +
+              'accounts for that year.',
+            'benchmarking',
+          );
+        }
+
         await tx.execute(sql`
           update compilation_run
              set status = 'computed',
@@ -349,6 +411,7 @@ export async function executeRun(
           diagnostics: diagnosticCount,
           problems: problemCount,
           volumes,
+          benchmarking,
         };
       },
     );

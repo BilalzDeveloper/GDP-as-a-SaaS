@@ -22,6 +22,14 @@ export interface SdmxObservation {
   activity: string;
   /** 'current' | 'chain_linked' | 'previous_year'. */
   priceBasis: string;
+  /**
+   * Whether this figure has been reconciled to annual totals. A dimension
+   * rather than a flag, because a benchmarked and an unbenchmarked figure for
+   * the same quarter are two distinct observations and must not collide on
+   * the same key. Deliberately NOT sent as SDMX's ADJUSTMENT concept, which
+   * means seasonal and calendar adjustment — neither of which this is.
+   */
+  benchmarked: boolean;
   /** Unit of measure code from the unit registry. */
   unit: string;
   /** The figure. Null is written as an empty cell, never as zero. */
@@ -49,6 +57,7 @@ const COLUMNS = [
   'TRANSACTION',
   'ACTIVITY',
   'PRICE_BASIS',
+  'BENCHMARKED',
   'MEASURE',
   'UNIT_MEASURE',
   'OBS_VALUE',
@@ -87,6 +96,7 @@ export function toSdmxCsv(
         o.transaction,
         o.activity,
         o.priceBasis,
+        o.benchmarked ? 'true' : 'false',
         o.measure,
         o.unit,
         o.value === null ? '' : String(o.value),

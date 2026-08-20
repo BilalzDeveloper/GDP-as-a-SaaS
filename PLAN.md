@@ -574,3 +574,77 @@ Quarterly compilation with Denton proportional benchmarking to annual totals.
 `period_frequency` already carries 'quarterly' throughout, and the
 fiscal-year-aware `reference_period` model has been in place since milestone
 4, so this is engine work plus a benchmarking step in the run.
+
+## Milestone 8 — delivered
+
+`src/engine/benchmark.ts`, `src/compile/benchmark.ts`, migration
+`0007_quarterly_benchmarking.sql`, and the quarterly panels on the run page.
+Full write-up in [`docs/quarterly-accounts.md`](docs/quarterly-accounts.md).
+
+Quarterly *compilation* needed no new code at all — the assembler groups
+observations by period whatever the frequency, so a quarterly run already
+computed all three approaches. The milestone is really about **benchmarking**:
+making the quarters sum to the annual accounts without flattening the movement
+the quarterly indicators show.
+
+- **Denton first-difference, both variants** (D33). Proportional by default —
+  it preserves growth rates and is what the IMF QNA manual recommends;
+  additive selectable per run for series that cross zero, where a ratio-based
+  adjustment is unstable or inverts. Where proportional has no solution (the
+  indicator sums to zero over a year) the engine refuses and names the
+  additive variant rather than returning a number.
+- **Solved exactly, as a written-out linear system** (D34). The KKT system,
+  through a ~40-line Gaussian elimination with partial pivoting in
+  `numeric.ts`. No iteration, no tuning parameter: re-execution returns
+  identical figures, asserted with `toEqual` rather than `toBeCloseTo`.
+- **Extrapolation falls out of the same arithmetic.** Quarters past the last
+  annual year sit in the objective and in no constraint, so the final
+  adjustment carries forward — Denton's standard extrapolation, not a rule
+  bolted on. Same fact back-casts quarters before the first benchmark. Those
+  periods are flagged and named in a diagnostic, because they will be revised.
+- **Quarters are grouped into years by `reference_period.fiscal_year`**, never
+  by parsing a period label. Australia runs July–June, India April–March; a
+  string parse would be right for some tenants and quietly wrong for others
+  (non-negotiable 4). The engine takes an opaque `benchmarkKey` and never sees
+  a date.
+- **A quarterly run names an annual *run* as its benchmark** (D37), not a set
+  of numbers, and both the source and the variant go into the pinned
+  `method_version`. A trigger blocks benchmarking against another tenant's run
+  — a foreign key does not consult RLS policies, so this cannot be left to the
+  application (non-negotiable 3).
+- **Both figures are kept.** `compilation_result.benchmarked` distinguishes the
+  indicator as compiled from the reconciled figure. The ratio between them is
+  how a compiler judges the indicator; a run whose largest adjustment exceeds
+  10% gets a warning saying exactly that.
+- **The reconciliation is stored, not asserted.** Every constraint applied is
+  written to `benchmark_constraint` with the annual total, the indicator sum,
+  the benchmarked sum and the residual — zero by construction, kept so an
+  auditor can confirm it from the data.
+- **53 new tests** (456 total, green), including two closed-form Denton cases
+  derived on paper so a wrong solve fails with a hand-checkable number, the
+  no-step-at-the-year-boundary property that is the whole reason to prefer
+  Denton to prorating, and an end-to-end quarterly run whose quarters are
+  checked against the annual run's own stored results rather than against
+  numbers typed into the test.
+
+### Two honest limits, both reported rather than hidden
+
+**Benchmarked components do not add across a quarter** (D35). Each series is
+benchmarked on its own — univariate Denton, as the manual describes — so
+industries sum correctly down their own year but not across a quarter. Same
+posture as the chained-volume residual: measure it, publish it, explain it.
+Multivariate benchmarking is the upgrade path, noted rather than approximated.
+
+**These series are not seasonally adjusted** (D36). Seasonal adjustment is a
+separate discipline with its own tools; a rough version would be worse than
+none. The UI says so next to the growth rates and explains why the
+year-on-year column is the one usually quoted.
+
+### The brief's milestones are complete
+
+All eight are delivered. What remains is owner-side, and unchanged since
+earlier milestones: the Supabase + Vercel deployment (blocked on credentials,
+which should go through the consoles rather than this transcript), loading the
+official UN classification files to clear the transcription caveat, obtaining
+an official national-accounts fixture to validate the engine against, and
+running one exported file through an SDMX validator.

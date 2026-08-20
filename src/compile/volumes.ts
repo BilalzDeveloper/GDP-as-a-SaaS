@@ -161,7 +161,8 @@ export async function computeVolumes(
       values (${orgId}::uuid, ${runId}::uuid, ${periodId}::uuid,
               'production'::compilation_approach, ${measure},
               ${activityItemId}::uuid, 'chain_linked'::price_basis, ${value})
-      on conflict (run_id, period_id, approach, measure, activity_item_id, price_basis)
+      on conflict (run_id, period_id, approach, measure, activity_item_id,
+                   price_basis, benchmarked)
       do update set value = excluded.value
     `);
   };

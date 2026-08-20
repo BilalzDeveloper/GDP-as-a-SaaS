@@ -73,3 +73,70 @@ export function assertFinite(value: number, name: string): void {
     throw new TypeError(`${name} must be a finite number, received ${String(value)}`);
   }
 }
+
+/**
+ * Solve a dense square linear system A·x = b by Gaussian elimination with
+ * partial pivoting.
+ *
+ * Boring on purpose. Benchmarking a quarterly series to annual totals is a
+ * constrained least-squares problem, and the textbook way to state it is a
+ * KKT system — which is then just a linear solve. Writing that solve out in
+ * full keeps the whole method auditable in one file, where a matrix library
+ * would move the part a statistician most wants to check out of the repo.
+ *
+ * The singularity threshold is relative to the largest entry in the matrix,
+ * so it behaves the same whether figures arrive in units or in millions.
+ */
+export function solveLinearSystem(
+  matrix: readonly (readonly number[])[],
+  rhs: readonly number[],
+): number[] {
+  const n = rhs.length;
+  if (matrix.length !== n) {
+    throw new RangeError(
+      `Matrix has ${matrix.length} rows but the right-hand side has ${n} entries`,
+    );
+  }
+
+  let scale = 0;
+  for (const row of matrix) {
+    if (row.length !== n) throw new RangeError('Matrix must be square');
+    for (const entry of row) {
+      assertFinite(entry, 'matrix entry');
+      scale = Math.max(scale, Math.abs(entry));
+    }
+  }
+  for (const entry of rhs) assertFinite(entry, 'right-hand side entry');
+  if (scale === 0) throw new RangeError('Matrix is entirely zero and cannot be solved');
+  const tolerance = scale * 1e-12;
+
+  // Augmented [A | b], copied so the caller's arrays are untouched.
+  const a: number[][] = matrix.map((row, i) => [...row, rhs[i]]);
+
+  for (let col = 0; col < n; col++) {
+    let pivot = col;
+    for (let row = col + 1; row < n; row++) {
+      if (Math.abs(a[row][col]) > Math.abs(a[pivot][col])) pivot = row;
+    }
+    if (Math.abs(a[pivot][col]) <= tolerance) {
+      throw new RangeError(
+        `System is singular at column ${col}; it has no unique solution`,
+      );
+    }
+    if (pivot !== col) [a[col], a[pivot]] = [a[pivot], a[col]];
+
+    for (let row = col + 1; row < n; row++) {
+      const factor = a[row][col] / a[col][col];
+      if (factor === 0) continue;
+      for (let c = col; c <= n; c++) a[row][c] -= factor * a[col][c];
+    }
+  }
+
+  const x = new Array<number>(n).fill(0);
+  for (let i = n - 1; i >= 0; i--) {
+    let total = a[i][n];
+    for (let j = i + 1; j < n; j++) total -= a[i][j] * x[j];
+    x[i] = total / a[i][i];
+  }
+  return x;
+}

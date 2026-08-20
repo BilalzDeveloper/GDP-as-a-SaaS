@@ -547,6 +547,94 @@ RUN = org_shell('runs') + '''
 </main>'''
 
 
+QUARTERLY = org_shell('runs') + """
+<main>
+  <a class="backlink" href="#">← Compilation runs</a>
+  <h1>2025 Q1–Q4, third estimate</h1>
+  <ul class="meta">
+    <li><span class="k">Vintage</span><span class="v">2025 quarterly</span></li>
+    <li><span class="k">Frequency</span><span class="v">quarterly</span></li>
+    <li><span class="k">Anchor</span><span class="v">production</span></li>
+    <li><span class="k">Benchmark</span><span class="v">2024 Annual Estimates, revision 1 · Denton proportional</span></li>
+    <li><span class="k">Engine</span><span class="v mono">0.1.0</span></li>
+  </ul>
+
+  <ol class="stepper">
+    <li class="is-done"><span class="n">1</span> Computed</li>
+    <li class="is-current"><span class="n">2</span> Under review</li>
+    <li><span class="n">3</span> Approved</li>
+    <li><span class="n">4</span> Published</li>
+  </ol>
+
+  <h2>Quarterly path</h2>
+  <section class="panel">
+    <div class="panel-head"><h3>Headline GDP — indicator and benchmarked</h3></div>
+    <div class="panel-scroll"><table>
+      <thead><tr><th>Quarter</th><th class="num">Indicator</th><th class="num">Benchmarked</th><th class="num">Ratio</th><th class="num">Q/Q %</th><th class="num">Y/Y %</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">2024-Q1</td><td class="num">53,180.40</td><td class="num strong">54,022.85</td><td class="num">1.0158</td><td class="num">—</td><td class="num">—</td></tr>
+        <tr><td class="mono">2024-Q2</td><td class="num">54,905.10</td><td class="num strong">55,780.02</td><td class="num">1.0159</td><td class="num">3.25</td><td class="num">—</td></tr>
+        <tr><td class="mono">2024-Q3</td><td class="num">56,402.75</td><td class="num strong">57,318.44</td><td class="num">1.0162</td><td class="num">2.76</td><td class="num">—</td></tr>
+        <tr><td class="mono">2024-Q4</td><td class="num">54,118.90</td><td class="num strong">55,019.39</td><td class="num">1.0166</td><td class="num is-negative">−4.01</td><td class="num">—</td></tr>
+        <tr><td class="mono">2025-Q1</td><td class="num">55,040.20</td><td class="num strong">55,976.10</td><td class="num">1.0170</td><td class="num">1.74</td><td class="num">3.62</td></tr>
+        <tr><td class="mono">2025-Q2</td><td class="num">56,881.65</td><td class="num strong">57,848.63</td><td class="num">1.0170</td><td class="num">3.34</td><td class="num">3.71</td></tr>
+        <tr><td class="mono">2025-Q3</td><td class="num">58,204.30</td><td class="num strong">59,193.77</td><td class="num">1.0170</td><td class="num">2.32</td><td class="num">3.27</td></tr>
+        <tr><td class="mono">2025-Q4</td><td class="num">55,918.05</td><td class="num strong">56,868.66</td><td class="num">1.0170</td><td class="num is-negative">−3.93</td><td class="num">3.36</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+  <p class="muted">Growth rates are computed on the published figure — the
+    benchmarked one where the run is benchmarked. These series are
+    <strong>not seasonally adjusted</strong>: quarter-on-quarter movements
+    therefore carry the seasonal pattern as well as the underlying change,
+    which is why the year-on-year column is the one usually quoted.</p>
+
+  <section class="panel">
+    <div class="panel-head"><h3>Reconciliation to the annual accounts</h3></div>
+    <div class="panel-scroll"><table>
+      <thead><tr><th>Year</th><th>Series</th><th class="num">Annual total</th><th class="num">Indicator sum</th><th class="num">Benchmarked sum</th><th class="num">Residual</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">2024</td><td class="muted">summary · headline gdp</td><td class="num">222,140.70</td><td class="num">218,607.15</td><td class="num strong">222,140.70</td><td class="num">0.00</td></tr>
+        <tr><td class="mono">2024</td><td class="muted">production · gdp</td><td class="num">222,140.70</td><td class="num">218,607.15</td><td class="num strong">222,140.70</td><td class="num">0.00</td></tr>
+        <tr><td class="mono">2024</td><td class="muted">production · total gross value added</td><td class="num">198,402.55</td><td class="num">195,188.40</td><td class="num strong">198,402.55</td><td class="num">0.00</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+  <p class="muted">The residual column is the check, not a finding: it is zero
+    because the constraint was imposed. It is stored and shown so an auditor
+    can confirm that rather than take the method's word for it.</p>
+
+  <div class="callout is-note">
+    <p class="callout-title">What benchmarking changed, and what it did not</p>
+    <p>The quarters now sum exactly to the annual accounts, because the annual
+      figures come from better sources — censuses, audited government accounts,
+      full-year tax records — than any quarterly indicator does. What survives
+      from the indicator is its <em>movement</em>.</p>
+    <p class="muted">Denton finds the adjustment that meets every annual total
+      while changing as little as possible from one quarter to the next. The
+      naive alternative — prorating each year separately — also meets the
+      totals, but applies one adjustment across a year and a different one
+      across the next, putting a step in the published growth rate at every
+      turn of the year that nothing in the economy caused.</p>
+    <p class="muted" style="margin-bottom:0">Quarters after the last
+      benchmarked year carry the final adjustment forward unchanged. They are
+      estimates against an annual total that does not exist yet, and will be
+      revised when it does — which is normal for quarterly accounts, not a
+      defect in these figures.</p>
+  </div>
+
+  <h2>Diagnostics</h2>
+  <section class="panel"><div class="panel-scroll"><table>
+    <thead><tr><th>Finding</th><th>Period</th></tr></thead>
+    <tbody>
+      <tr class="sev-info"><td><span class="mono">benchmark_extrapolated</span> <span class="pill">info</span> <span class="muted">· benchmarking</span><br><span class="muted">2025-Q1, 2025-Q2, 2025-Q3, 2025-Q4 fall after the last benchmarked year. Their figures carry the final benchmark-to-indicator adjustment forward unchanged, so they will be revised when the annual accounts for those years are compiled.</span></td><td class="mono muted">—</td></tr>
+      <tr class="sev-warning"><td><span class="mono">benchmark_sign_change</span> <span class="pill is-warning">warning</span> <span class="muted">· expenditure gross capital formation</span><br><span class="muted">expenditure gross_capital_formation changes sign across the quarters, and proportional Denton adjusts by a ratio — which inverts where the series is negative and is unstable where it is near zero. Re-run with the additive variant if this series matters.</span></td><td class="mono muted">—</td></tr>
+      <tr class="sev-info"><td><span class="mono">benchmark_components_not_additive</span> <span class="pill">info</span> <span class="muted">· benchmarking</span><br><span class="muted">Benchmarked industries do not sum exactly to benchmarked total value added — the largest gap is 41.28 in 2025-Q3, 0.021% of the total. Each series was smoothed against its own annual constraint, so the quarters add correctly down the year but the industries need not add across a quarter.</span></td><td class="mono muted">—</td></tr>
+    </tbody>
+  </table></div></section>
+</main>"""
+
+
 SCREENS = [
     ('landing', 'Landing', '/', LANDING,
      'Signed out. The three guarantees are the ones the brief calls '
@@ -582,6 +670,10 @@ SCREENS = [
      'All three approaches side by side, the discrepancy between them, '
      'drill-down to the source rows behind a cell, and the non-additivity '
      'note that stops chain-linking being reported as a bug.'),
+    ('quarterly', 'Quarterly run', '/orgs/…/runs/[id]', QUARTERLY,
+     'A quarterly run benchmarked to the annual accounts by the Denton '
+     'method. The indicator is kept beside the reconciled figure, because the '
+     'ratio between them is how a compiler judges the indicator.'),
 ]
 
 
@@ -589,7 +681,7 @@ def build() -> str:
     app_css = scoped_app_css()
     rail = []
     frames = []
-    groups = [('Getting in', 2), ('Setting up', 3), ('Compiling', 4)]
+    groups = [('Getting in', 2), ('Setting up', 3), ('Compiling', 5)]
     i = 0
     for label, count in groups:
         rail.append(f'<p class="rail-group">{label}</p>')
@@ -818,8 +910,8 @@ TEMPLATE = '''<title>Compilation Platform Screens</title>
 <header class="masthead">
   <h1>Compilation Platform Screens</h1>
   <p>
-    The nine screens of the SNA 2008 GDP compilation platform, from sign-in
-    through to a run under review with its exports and diagnostics.
+    The ten screens of the SNA 2008 GDP compilation platform, from sign-in
+    through to a quarterly run benchmarked to the annual accounts.
   </p>
 </header>
 

@@ -13,10 +13,22 @@ type ResultRow = {
   approach: string;
   measure: string;
   price_basis: string;
+  benchmarked: boolean;
   activity_code: string | null;
   activity_name: string | null;
   activity_item_id: string | null;
   value: string | null;
+};
+
+/** One annual constraint the quarterly figures were reconciled to. */
+type ConstraintRow = {
+  period_label: string;
+  approach: string;
+  measure: string;
+  annual_total: string;
+  indicator_total: string;
+  benchmarked_total: string;
+  residual: string;
 };
 
 type DiagnosticRow = {
@@ -62,11 +74,15 @@ export default async function RunPage({
       select r.id, r.name, r.status, r.anchor_approach, r.executed_at,
              r.error_message, r.volume_reference_period_label,
              r.volume_index_formula, r.published_at, r.embargo_until,
-             r.created_by, v.name as vintage_name, v.frozen_at,
+             r.created_by, r.frequency::text as frequency,
+             r.benchmark_source_run_id, r.benchmark_method,
+             b.name as benchmark_name,
+             v.name as vintage_name, v.frozen_at,
              v.published as vintage_published, v.embargo_until as vintage_embargo,
              mv.engine_semver, mv.config
         from compilation_run r
         join data_vintage v on v.id = r.input_vintage_id
+        left join compilation_run b on b.id = r.benchmark_source_run_id
         left join method_version mv on mv.id = r.method_version_id
        where r.id = ${runId}::uuid
     `)) as unknown as {
@@ -75,7 +91,9 @@ export default async function RunPage({
       volume_reference_period_label: string | null;
       volume_index_formula: string | null;
       published_at: string | null; embargo_until: string | null;
-      created_by: string | null;
+      created_by: string | null; frequency: string;
+      benchmark_source_run_id: string | null; benchmark_method: string;
+      benchmark_name: string | null;
       vintage_name: string; frozen_at: string | null;
       vintage_published: boolean; vintage_embargo: string | null;
       engine_semver: string | null; config: Record<string, unknown> | null;
@@ -84,6 +102,7 @@ export default async function RunPage({
 
     const results = (await tx.execute(sql`
       select p.label as period_label, cr.approach, cr.measure, cr.price_basis,
+             cr.benchmarked,
              ci.code as activity_code, ci.name as activity_name,
              cr.activity_item_id, cr.value
         from compilation_result cr
@@ -124,6 +143,17 @@ export default async function RunPage({
       ];
     }
 
+    const constraints = (await tx.execute(sql`
+      select p.label as period_label, bc.approach::text as approach,
+             bc.measure, bc.annual_total, bc.indicator_total,
+             bc.benchmarked_total, bc.residual
+        from benchmark_constraint bc
+        join reference_period p on p.id = bc.annual_period_id
+       where bc.run_id = ${runId}::uuid
+         and bc.activity_item_id is null
+       order by p.start_date, bc.approach, bc.measure
+    `)) as unknown as ConstraintRow[];
+
     const reviews = (await tx.execute(sql`
       select rr.decision::text as decision, rr.note, rr.decided_at, u.email
         from run_review rr
@@ -144,6 +174,7 @@ export default async function RunPage({
       run: runs[0],
       results: [...results],
       diagnostics: [...diagnostics],
+      constraints: [...constraints],
       sources,
       reviews: [...reviews],
       role: membership[0]?.role ?? 'viewer',
@@ -151,7 +182,8 @@ export default async function RunPage({
   });
 
   if (!data) notFound();
-  const { org, run, results, diagnostics, sources, reviews, role } = data;
+  const { org, run, results, diagnostics, constraints, sources, reviews, role } =
+    data;
 
   const canCompile = role === 'admin' || role === 'compiler';
   const canReview = role === 'admin' || role === 'reviewer';
@@ -163,13 +195,23 @@ export default async function RunPage({
   const embargoActive = embargo ? new Date(embargo) > new Date() : false;
 
   const periods = [...new Set(results.map((r) => r.period_label))];
-  const value = (periodLabel: string, approach: string, measure: string) =>
+
+  /* A benchmarked run holds two figures for the same cell — the indicator as
+     compiled and the figure after reconciliation. Every lookup therefore says
+     which one it wants; defaulting would eventually publish the wrong one. */
+  const value = (
+    periodLabel: string,
+    approach: string,
+    measure: string,
+    benchmarked = false,
+  ) =>
     results.find(
       (r) =>
         r.period_label === periodLabel &&
         r.approach === approach &&
         r.measure === measure &&
         r.price_basis === 'current' &&
+        r.benchmarked === benchmarked &&
         r.activity_item_id === null,
     )?.value ?? null;
 
@@ -186,6 +228,26 @@ export default async function RunPage({
         r.price_basis === 'chain_linked' &&
         r.activity_item_id === activityItemId,
     )?.value ?? null;
+
+  const isQuarterly = run.frequency === 'quarterly';
+  const hasBenchmarked = results.some((r) => r.benchmarked);
+  /* Headline GDP as published: the benchmarked figure where there is one. */
+  const headline = (periodLabel: string) =>
+    value(periodLabel, 'summary', 'headline_gdp', hasBenchmarked) ??
+    value(periodLabel, 'summary', 'headline_gdp');
+
+  /* Growth on the published headline. Quarter-on-quarter and, four quarters
+     back, year-on-year — the comparison usually quoted, because it is not
+     disturbed by the seasonal pattern this engine does not remove. */
+  const growth = (i: number, lag: number): number | null => {
+    if (i - lag < 0) return null;
+    const current = headline(periods[i]);
+    const previous = headline(periods[i - lag]);
+    if (current === null || previous === null) return null;
+    const before = Number(previous);
+    if (!(before > 0)) return null;
+    return ((Number(current) - before) / before) * 100;
+  };
 
   const hasVolumes = results.some((r) => r.price_basis === 'chain_linked');
   const volumeIndustries = results.filter(
@@ -225,9 +287,23 @@ export default async function RunPage({
             </span>
           </li>
           <li>
+            <span className="k">Frequency</span>
+            <span className="v">{run.frequency}</span>
+          </li>
+          <li>
             <span className="k">Anchor</span>
             <span className="v">{run.anchor_approach}</span>
           </li>
+          {isQuarterly && (
+            <li>
+              <span className="k">Benchmark</span>
+              <span className="v">
+                {run.benchmark_name
+                  ? `${run.benchmark_name} · ${run.benchmark_method.replace('denton_', 'Denton ')}`
+                  : 'none'}
+              </span>
+            </li>
+          )}
           {run.engine_semver && (
             <li>
               <span className="k">Engine</span>
@@ -371,6 +447,167 @@ export default async function RunPage({
               approach falls short of the headline. Discrepancies are reported,
               never removed by adjusting an estimate.
             </p>
+
+            {isQuarterly && (
+              <>
+                <h2>Quarterly path</h2>
+                <Panel
+                  title={
+                    hasBenchmarked
+                      ? 'Headline GDP — indicator and benchmarked'
+                      : 'Headline GDP — as compiled, not benchmarked'
+                  }
+                  scroll
+                >
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Quarter</th>
+                        <th className="num">Indicator</th>
+                        {hasBenchmarked && <th className="num">Benchmarked</th>}
+                        {hasBenchmarked && <th className="num">Ratio</th>}
+                        <th className="num">Q/Q %</th>
+                        <th className="num">Y/Y %</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {periods.map((p, i) => {
+                        const indicator = value(p, 'summary', 'headline_gdp');
+                        const reconciled = value(p, 'summary', 'headline_gdp', true);
+                        const ratio =
+                          indicator !== null &&
+                          reconciled !== null &&
+                          Number(indicator) !== 0
+                            ? Number(reconciled) / Number(indicator)
+                            : null;
+                        const qoq = growth(i, 1);
+                        const yoy = growth(i, 4);
+                        const pct = (v: number | null) =>
+                          v === null ? '—' : v.toFixed(2);
+                        return (
+                          <tr key={p}>
+                            <td className="mono">{p}</td>
+                            <td className="num">{fmt(indicator)}</td>
+                            {hasBenchmarked && (
+                              <td className="num strong">{fmt(reconciled)}</td>
+                            )}
+                            {hasBenchmarked && (
+                              <td className="num">
+                                {ratio === null ? '—' : ratio.toFixed(4)}
+                              </td>
+                            )}
+                            <td
+                              className={
+                                qoq !== null && qoq < 0 ? 'num is-negative' : 'num'
+                              }
+                            >
+                              {pct(qoq)}
+                            </td>
+                            <td
+                              className={
+                                yoy !== null && yoy < 0 ? 'num is-negative' : 'num'
+                              }
+                            >
+                              {pct(yoy)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </Panel>
+                <p className="muted">
+                  Growth rates are computed on the published figure — the
+                  benchmarked one where the run is benchmarked. These series
+                  are <strong>not seasonally adjusted</strong>: quarter-on-quarter
+                  movements therefore carry the seasonal pattern as well as the
+                  underlying change, which is why the year-on-year column is
+                  the one usually quoted.
+                </p>
+
+                {constraints.length > 0 && (
+                  <>
+                    <Panel title="Reconciliation to the annual accounts" scroll>
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Year</th>
+                            <th>Series</th>
+                            <th className="num">Annual total</th>
+                            <th className="num">Indicator sum</th>
+                            <th className="num">Benchmarked sum</th>
+                            <th className="num">Residual</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {constraints.map((c, i) => (
+                            <tr key={i}>
+                              <td className="mono">{c.period_label}</td>
+                              <td className="muted">
+                                {c.approach} · {c.measure.replace(/_/g, ' ')}
+                              </td>
+                              <td className="num">{fmt(c.annual_total)}</td>
+                              <td className="num">{fmt(c.indicator_total)}</td>
+                              <td className="num strong">{fmt(c.benchmarked_total)}</td>
+                              <td className="num">{fmt(c.residual)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </Panel>
+                    <p className="muted">
+                      The residual column is the check, not a finding: it is
+                      zero because the constraint was imposed. It is stored and
+                      shown so an auditor can confirm that rather than take the
+                      method&apos;s word for it.
+                    </p>
+                  </>
+                )}
+
+                {hasBenchmarked ? (
+                  <div className="callout is-note">
+                    <p className="callout-title">
+                      What benchmarking changed, and what it did not
+                    </p>
+                    <p>
+                      The quarters now sum exactly to the annual accounts,
+                      because the annual figures come from better sources —
+                      censuses, audited government accounts, full-year tax
+                      records — than any quarterly indicator does. What
+                      survives from the indicator is its <em>movement</em>.
+                    </p>
+                    <p className="muted">
+                      Denton finds the adjustment that meets every annual total
+                      while changing as little as possible from one quarter to
+                      the next. The naive alternative — prorating each year
+                      separately — also meets the totals, but applies one
+                      adjustment across a year and a different one across the
+                      next, putting a step in the published growth rate at
+                      every turn of the year that nothing in the economy caused.
+                    </p>
+                    <p className="muted" style={{ marginBottom: 0 }}>
+                      Quarters after the last benchmarked year carry the final
+                      adjustment forward unchanged. They are estimates against
+                      an annual total that does not exist yet, and will be
+                      revised when it does — which is normal for quarterly
+                      accounts, not a defect in these figures.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="callout is-warning">
+                    <p className="callout-title">Not benchmarked</p>
+                    <p className="muted" style={{ marginBottom: 0 }}>
+                      These quarters are the compiled indicator. They are not
+                      guaranteed to sum to the annual accounts for the same
+                      years, so publishing both without reconciling them would
+                      put two different figures for the same year into the
+                      public record. Choose an executed annual run as the
+                      benchmark when creating the run.
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
 
             <h2>Value added by industry</h2>
             {periods.map((p) => {

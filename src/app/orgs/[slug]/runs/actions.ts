@@ -47,10 +47,21 @@ export async function createRun(formData: FormData) {
   const frequency = String(formData.get('frequency') ?? 'annual');
   const volumeReference = String(formData.get('volumeReference') ?? '').trim();
   const volumeFormula = String(formData.get('volumeFormula') ?? '').trim();
+  const benchmarkRunId = String(formData.get('benchmarkRunId') ?? '').trim();
+  const benchmarkMethod = String(formData.get('benchmarkMethod') ?? 'denton_proportional');
   if (!name) fail(path, 'Name the run.');
   if (!vintageId) fail(path, 'Choose the vintage this run reads.');
   if (volumeFormula && !['laspeyres', 'paasche', 'fisher'].includes(volumeFormula)) {
     fail(path, 'Unknown index formula.');
+  }
+  if (!['denton_proportional', 'denton_additive', 'none'].includes(benchmarkMethod)) {
+    fail(path, 'Unknown benchmarking method.');
+  }
+  // Benchmarking reconciles a sub-annual series to annual totals, so it is
+  // meaningless on an annual run. Silently ignoring the field would leave a
+  // setting showing in the UI that does nothing.
+  if (frequency === 'annual' && benchmarkRunId) {
+    fail(path, 'An annual run is not benchmarked — benchmarking reconciles quarterly figures to annual totals.');
   }
 
   try {
@@ -61,10 +72,12 @@ export async function createRun(formData: FormData) {
         const rows = (await tx.execute(sql`
           insert into compilation_run
             (org_id, name, frequency, input_vintage_id, anchor_approach,
-             volume_reference_period_label, volume_index_formula, created_by)
+             volume_reference_period_label, volume_index_formula,
+             benchmark_source_run_id, benchmark_method, created_by)
           values (${org.id}::uuid, ${name}, ${frequency}::period_frequency,
                   ${vintageId}::uuid, ${anchor},
                   ${volumeReference || null}, ${volumeFormula || null},
+                  ${benchmarkRunId || null}::uuid, ${benchmarkMethod},
                   ${claims.sub}::uuid)
           returning id
         `)) as unknown as { id: string }[];
@@ -79,6 +92,9 @@ export async function createRun(formData: FormData) {
     if (message.includes('compilation_run_org_id_name_key')) {
       fail(path, `A run named "${name}" already exists.`);
     }
+    // The benchmark-source trigger writes messages meant to be read.
+    const cause = dbError(e, '');
+    if (cause.includes('benchmark source')) fail(path, cause);
     fail(path, 'The run could not be created.');
   }
 }

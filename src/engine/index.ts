@@ -4,9 +4,10 @@
 // Structured input in, structured output out, so it can be unit-tested
 // exhaustively and reused outside this application.
 //
-// Scope: all three approaches at current prices (milestone 3) plus volume
-// measures — deflation, index numbers and chain-linking (milestone 6).
-// Quarterly compilation and Denton benchmarking arrive in milestone 8.
+// Scope: all three approaches at current prices (milestone 3), volume
+// measures — deflation, index numbers and chain-linking (milestone 6) — and
+// quarterly compilation with Denton benchmarking to annual totals
+// (milestone 8).
 //
 // See docs/engine.md for the methodological variants and the citation policy.
 
@@ -34,6 +35,7 @@ export type {
 export {
   approximatelyEqual,
   roundForPublication,
+  solveLinearSystem,
   sum,
   sumBy,
   DEFAULT_ABSOLUTE_TOLERANCE,
@@ -93,6 +95,21 @@ export {
   type PriceQuantity,
   type SeriesPoint,
 } from './volume';
+
+export {
+  dentonBenchmark,
+  subAnnualGrowth,
+  temporalAggregate,
+  BenchmarkError,
+  type BenchmarkConstraintCheck,
+  type BenchmarkOptions,
+  type BenchmarkResult,
+  type BenchmarkTotal,
+  type BenchmarkVariant,
+  type BenchmarkedPoint,
+  type IndicatorPoint,
+  type QuarterlyGrowthPoint,
+} from './benchmark';
 
 /**
  * Engine version, pinned into `method_version` when a compilation runs so any

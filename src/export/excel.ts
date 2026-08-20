@@ -28,6 +28,8 @@ export interface ExcelRow {
   activityCode: string | null;
   activityName: string | null;
   priceBasis: string;
+  /** True for a figure reconciled to annual totals. */
+  benchmarked: boolean;
   value: number | null;
 }
 
@@ -71,6 +73,7 @@ export async function toExcelWorkbook(
       { header: 'Measure', key: 'measure', width: 30 },
       { header: 'Activity code', key: 'code', width: 14 },
       { header: 'Activity', key: 'activity', width: 40 },
+      { header: 'Benchmarked', key: 'benchmarked', width: 13 },
       { header: 'Value', key: 'value', width: 18 },
     ];
     sheet.getRow(1).font = { bold: true };
@@ -81,11 +84,30 @@ export async function toExcelWorkbook(
         measure: row.measure,
         code: row.activityCode ?? '',
         activity: row.activityName ?? '',
+        // Quarterly runs carry the indicator and the reconciled figure for
+        // the same cell; without this column they would look like duplicates.
+        benchmarked: row.benchmarked ? 'yes' : 'no',
         // Null stays empty: a missing observation is not a zero.
         value: row.value,
       });
     }
     sheet.getColumn('value').numFmt = '#,##0.000';
+
+    if (basis === 'current' && basisRows.some((r) => r.benchmarked)) {
+      sheet.addRow([]);
+      sheet.addRow([
+        'Note: rows marked Benchmarked = yes have been reconciled to the annual',
+      ]);
+      sheet.addRow([
+        'accounts, so the quarters of a year sum exactly to the annual figure.',
+      ]);
+      sheet.addRow([
+        'Rows marked no are the indicator as compiled from source data, kept so',
+      ]);
+      sheet.addRow([
+        'the size of the adjustment can be seen. Publish the benchmarked rows.',
+      ]);
+    }
 
     if (basis === 'chain_linked') {
       const note = sheet.addRow([]);

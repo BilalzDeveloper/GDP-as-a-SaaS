@@ -478,3 +478,89 @@ rules, and prepend the families to the three stacks. Nothing else changes.
 **Alternatives:** a webfont CDN (rejected above); a single family across all
 three roles (loses the distinction between published output and interface
 chrome, which is doing real work here).
+
+## D33 — Denton proportional first-difference as the benchmarking default
+**Decision:** Quarterly series are reconciled to annual totals by the Denton
+(1971) first-difference method, proportional variant by default, with the
+additive variant selectable per run. Second-difference forms and the
+Cholette–Dagum family are not implemented.
+**Why:** The brief names the Denton proportional method, and the IMF *Quarterly
+National Accounts Manual* (Bloem, Dippelsman and Mæhle, 2001; 2nd ed. 2017)
+ch.6 — which SNA 2008 ch.28 defers to — recommends it as the practical
+default. The alternative a compiler would otherwise reach for, prorating each
+year's total across its quarters, meets the annual constraint but applies one
+uniform adjustment per year, putting a step in the published growth rate at
+every turn of the year that nothing in the economy caused.
+**Why the additive variant is offered:** proportional Denton adjusts by a
+ratio, which is unstable near zero and inverts where the series is negative,
+and has no solution at all where the indicator sums to zero over a year.
+Changes in inventories (P.52) is the standard case. The engine refuses rather
+than returning a number, and names the additive variant in the error.
+**Alternatives:** Cholette–Dagum would allow for autocorrelated and
+heteroscedastic indicator error, which is a real refinement — but the QNA
+manual's own judgement is that first-difference proportional suffices in
+practice, and a half-built implementation of a method nobody asked for is
+worse than an honest omission.
+
+## D34 — Benchmarking is solved exactly, as a written-out linear system
+**Decision:** Denton is stated as a constrained least-squares problem and
+solved through its KKT system with a Gaussian-elimination routine written out
+in `src/engine/numeric.ts`, rather than iteratively or via a matrix library.
+**Why:** Two reasons. Reproducibility (non-negotiable 1): there is no
+iteration, no convergence criterion and no tuning parameter, so for a given
+indicator and set of totals there is exactly one answer, and re-execution
+returns identical figures rather than close ones — asserted with `toEqual`,
+not `toBeCloseTo`, in the test suite. Auditability: the solve is the part a
+statistician most wants to check, and a dependency would move it out of the
+repo. The routine is ~40 lines and pivots partially, with a singularity
+threshold relative to the matrix scale so it behaves the same for figures in
+units and in millions.
+**Consequence:** cost is O(n³) in the number of periods. Fifty years of
+quarters is a 250×250 solve per series, which is nothing; a compilation with
+tens of thousands of series would want batching, which is a caller-side change.
+
+## D35 — Univariate benchmarking, with the cross-sectional residual published
+**Decision:** Each series is benchmarked independently against its own annual
+total. Benchmarked industries therefore do not sum exactly to benchmarked
+total value added within a quarter, and that residual is measured and reported
+in a diagnostic rather than removed.
+**Why:** This is the same choice, for the same reason, as D26 on the
+non-additivity of chained volumes. Forcing the components to sum would mean
+altering each published industry figure to preserve an identity the method
+does not deliver. Multivariate benchmarking (Di Fonzo–Marini; Cholette–Dagum
+with contemporaneous constraints) would preserve both the temporal and the
+cross-sectional constraints, and is the honest upgrade path — noted in the
+code and in `docs/quarterly-accounts.md` rather than approximated.
+**Also decided here:** statistical discrepancies are never benchmarked. A
+discrepancy is the difference between two estimates, not a flow with an annual
+total of its own.
+
+## D36 — Benchmarked, not seasonally adjusted, and said so
+**Decision:** No seasonal adjustment is implemented. The UI states next to the
+growth rates that the series are not seasonally adjusted, and explains that
+this is why the year-on-year comparison is the one usually quoted.
+**Why:** Seasonal adjustment is a separate discipline with established tools
+(X-13ARIMA-SEATS, TRAMO/SEATS) and its own decisions about outliers, calendar
+effects and revision policy. Implementing a rough version would be worse than
+implementing none. The failure this guards against is presentational: a
+benchmarked quarterly series looks finished, and a reader who assumes it is
+seasonally adjusted will read the seasonal pattern as economic news.
+
+## D37 — A quarterly run names an annual *run* as its benchmark, not a set of numbers
+**Decision:** `compilation_run.benchmark_source_run_id` references another
+compilation run, which must be annual and must belong to the same
+organization. Both the source and the variant are written into the run's
+pinned `method_version` config.
+**Why:** Reproducibility again. A published quarterly figure is re-derivable
+only if the annual totals it was forced to sum to are identified exactly —
+along with the vintage and method version that produced *them*. Storing the
+totals as loose numbers would break that chain at the first annual revision.
+Putting the source in the pinned config means re-executing against a different
+annual run is visibly a different method rather than a silent change of
+figures.
+**Tenant isolation:** a foreign key is checked by the system and does not
+consult RLS policies, so without further protection a compiler who guessed a
+UUID could attach another tenant's annual run and pull its totals into their
+results. A `BEFORE INSERT OR UPDATE` trigger blocks that, and the isolation
+suite exercises it. Non-negotiable 3 is not something to leave to the
+application layer.
