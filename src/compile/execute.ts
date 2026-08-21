@@ -50,6 +50,8 @@ async function loadObservations(
            ts.transaction_code,
            ts.activity_item_id,
            ci.code         as activity_code,
+           ts.sector_item_id,
+           si.code         as sector_code,
            o.value,
            ts.unit_code,
            ts.valuation
@@ -57,6 +59,7 @@ async function loadObservations(
       join time_series ts on ts.id = o.series_id
       join reference_period p on p.id = o.period_id
       left join classification_item ci on ci.id = ts.activity_item_id
+      left join classification_item si on si.id = ts.sector_item_id
      where o.org_id = ${orgId}::uuid and o.vintage_id = ${vintageId}::uuid
      order by p.start_date, ts.transaction_code
   `)) as unknown as {
@@ -65,6 +68,8 @@ async function loadObservations(
     transaction_code: string;
     activity_item_id: string | null;
     activity_code: string | null;
+    sector_item_id: string | null;
+    sector_code: string | null;
     value: string | null;
     unit_code: string;
     valuation: 'basic' | 'producers' | 'purchasers' | null;
@@ -76,6 +81,8 @@ async function loadObservations(
     transactionCode: r.transaction_code,
     activityItemId: r.activity_item_id,
     activityCode: r.activity_code,
+    sectorItemId: r.sector_item_id,
+    sectorCode: r.sector_code,
     // NUMERIC arrives as text from the driver; the engine works in doubles
     // (DECISIONS.md D3).
     value: r.value === null ? null : Number(r.value),

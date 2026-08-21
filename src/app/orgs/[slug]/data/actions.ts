@@ -165,6 +165,7 @@ function buildMapping(formData: FormData): MappingDefinition {
       unitCode: col('col_unitCode'),
     },
     activityVersionId: String(formData.get('activityVersionId') ?? '') || undefined,
+    sectorVersionId: String(formData.get('sectorVersionId') ?? '') || undefined,
     unitCode: String(formData.get('unitCode') ?? 'NC_MN'),
     priceBasis: 'current',
     valuation:

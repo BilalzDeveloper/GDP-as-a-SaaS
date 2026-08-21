@@ -126,6 +126,9 @@ Working rules for sessions on this repo:
 - **Audited writes need a reason, and the reason is read by people.** Anything
   passed to `withRls(claims, { reason })` shows up on the audit page — name
   what was acted on rather than quoting an id (D41).
+- **Final consumption is resolved by institutional sector** (D46). A stated
+  sector wins; a blank one falls back to the code, and only P.31 and P.32 name
+  a sector unambiguously. `S.1` is never read as a component.
 - **Some transaction codes are not transactions.** `transaction_code.kind`
   separates `transaction` from `memorandum` (population — never summed into an
   aggregate) and `adjustment` (`FISIM.*`, `IMPRENT.*` — applied by the engine,

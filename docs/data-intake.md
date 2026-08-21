@@ -122,6 +122,41 @@ Periods are defined per organization because fiscal years differ by country. A
 file whose period labels do not match any defined period will fail validation
 with `unknown_period` on every row, so define periods before the first upload.
 
+## Institutional sectors
+
+Final consumption is the one part of the expenditure account where the same
+transaction is told apart by *who* did it. Map the sector column and choose a
+sector classification version — the seeded `SNA_SECTOR` covers S.1 through
+S.2 with their sub-sectors — and consumption resolves to the right component:
+
+| Sector | Component |
+|---|---|
+| S.14 households (and S.141–S.144) | Household final consumption |
+| S.15 NPISH | NPISH final consumption |
+| S.13 general government (and S.1311–S.1314) | Government final consumption |
+
+Any of P.3, P.31 and — for government — P.32 may carry it. Sub-sectors roll up
+to the sector that owns them, so a compilation keeping central, state and
+local government separately still produces one government figure.
+
+A compilation that keeps no sector dimension is fully supported: leave the
+column unmapped and the transaction code resolves it, but only where the code
+names a sector unambiguously — **P.31** for households, **P.32** for
+government. Two consequences follow, and both are reported rather than
+guessed at:
+
+- **An unqualified `P.3` is not read as any sector's consumption.** With no
+  sector it is households, NPISH and government together, so reading it as
+  government's double-counts it against the household figure beside it.
+- **`P.32` alone understates government consumption.** It is collective
+  consumption only; government also provides individual services to
+  households, chiefly health and education. The figure is used and the
+  shortfall stated. File against S.13 to have both parts counted.
+
+Supplying both a sector split and a total-economy figure for the same sector
+is refused outright: one is a double count and the other a residual, and only
+the compiler knows which.
+
 ## Supplying FISIM and imputed rent
 
 Two production-side adjustments are supplied as ordinary observations, on

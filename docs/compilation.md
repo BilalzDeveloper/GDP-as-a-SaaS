@@ -46,6 +46,9 @@ refuses to do:
 - **Mixed units are flagged**, never summed.
 - **Absent D.21 withholds production GDP** — value added at basic prices
   cannot become GDP at market prices without it.
+- **Consumption that names no sector is not attributed to one.** An
+  unqualified `P.3` is the whole economy's final consumption; reading it as
+  government's would double-count it against households (D46).
 - **A half-specified adjustment is withheld.** FISIM with a total but nothing
   allocated, or allocations with no total; imputed rent whose output and
   inputs name two different industries. See `docs/data-intake.md` for the

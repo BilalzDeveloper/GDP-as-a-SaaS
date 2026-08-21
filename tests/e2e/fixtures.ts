@@ -120,6 +120,8 @@ export function annualCsv(periodLabel: string): string {
 export async function applyStandardMapping(
   page: Page,
   unitCode = 'NC_MN',
+  /** Map the sector column too, against the seeded SNA sector classification. */
+  withSectors = false,
 ): Promise<void> {
   // Selects are addressed by name: Playwright folds a wrapped select's option
   // text into its accessible name, so label-based lookup is ambiguous here.
@@ -135,6 +137,16 @@ export async function applyStandardMapping(
   await page
     .locator('select[name="activityVersionId"]')
     .selectOption(await isic.getAttribute('value'));
+  if (withSectors) {
+    await page.locator('select[name="col_sectorCode"]').selectOption('sector');
+    const sna = page
+      .locator('select[name="sectorVersionId"] option')
+      .filter({ hasText: 'SNA_SECTOR' })
+      .first();
+    await page
+      .locator('select[name="sectorVersionId"]')
+      .selectOption(await sna.getAttribute('value'));
+  }
   await page.locator('select[name="unitCode"]').selectOption(unitCode);
   await page.getByRole('button', { name: 'Apply mapping and validate' }).click();
   // Wait for the staged state rather than for the click: the action redirects,
@@ -201,5 +213,30 @@ export function adjustmentsCsv(periodLabel: string): string {
     `FISIM.P2,C,${periodLabel},60`,
     `FISIM.P31,,${periodLabel},30`,
     `FISIM.P6,,${periodLabel},10`,
+  ].join('\n');
+}
+
+/**
+ * A complete expenditure account with consumption filed against the sector
+ * that did it, which is what the institutional-sector dimension is for.
+ *
+ *   GDP = 1700 (S.14) + 60 (S.15) + 550 (S.13) + 600 + 40 + 10 + 700 − 710
+ *       = 2950
+ *
+ * Government is filed on P.3 of S.13, the full figure: both the collective
+ * services and the individual ones it provides to households. There is no
+ * code that says that without the sector, which is the point of the fixture.
+ */
+export function sectorExpenditureCsv(periodLabel: string): string {
+  return [
+    'txn,isic,sector,period,value',
+    `P.31,,S.14,${periodLabel},1700`,
+    `P.31,,S.15,${periodLabel},60`,
+    `P.3,,S.13,${periodLabel},550`,
+    `P.51g,,,${periodLabel},600`,
+    `P.52,,,${periodLabel},40`,
+    `P.53,,,${periodLabel},10`,
+    `P.6,,,${periodLabel},700`,
+    `P.7,,,${periodLabel},710`,
   ].join('\n');
 }

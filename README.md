@@ -28,11 +28,14 @@ three approaches with full audit trails and reproducible vintages.
 - **Per-capita GDP and growth rates** — population uploaded as a memorandum
   observation, per-capita stated in units of the currency, and growth
   period-on-period and year-on-year.
+- **Institutional sectors** — final consumption resolved from the sector that
+  did the consuming, with sub-sectors rolling up and sector-free compilations
+  still supported.
 - **FISIM and imputed rent** — supplied as observations on adjustment codes,
   applied by the engine under a per-run treatment, with a half-specified
   adjustment refused rather than compiled.
 
-524 Vitest tests and 37 Playwright flows run in CI.
+529 Vitest tests and 38 Playwright flows run in CI.
 
 Three caveats worth knowing before relying on output, each marked in the data
 or the code rather than only here: the classification seeds are transcribed

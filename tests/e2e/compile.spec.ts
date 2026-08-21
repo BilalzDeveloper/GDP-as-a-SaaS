@@ -12,6 +12,7 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   adjustmentsCsv,
   annualCsv,
+  sectorExpenditureCsv,
   applyStandardMapping,
   commitInto,
   createOrganization,
@@ -33,6 +34,7 @@ const slug = `e2e-${id}`;
 const YEAR = 2023;
 const RUN_NAME = 'Annual estimates, first release';
 const FISIM_RUN_NAME = 'Annual estimates with FISIM';
+const SECTOR_RUN_NAME = 'Expenditure by institutional sector';
 
 let page: Page;
 /** Set once the run exists, so later tests can come back to it. */
@@ -355,4 +357,48 @@ test('FISIM supplied as data reaches the engine and moves GDP', async () => {
   // And the run says what it was compiled under, because a different
   // treatment is a different figure.
   await expect(page.getByText('allocated')).toBeVisible();
+});
+
+test('final consumption is read from the institutional sector that did it', async () => {
+  // The brief keys every series on (transaction, activity/product, sector,
+  // period, price basis, valuation). The sector was stored on the series and
+  // then dropped: the mapping form offered no classification version for it,
+  // so a mapped sector column resolved to nothing and blocked the upload, and
+  // the assembler never looked at the column anyway.
+  await uploadCsv(
+    page,
+    slug,
+    'Expenditure by sector',
+    'expenditure-sectors.csv',
+    sectorExpenditureCsv(String(YEAR)),
+  );
+  await applyStandardMapping(page, 'NC_MN', true);
+  await commitInto(page, 'by sector');
+
+  await page.goto(`/orgs/${slug}/runs`);
+  await page.locator('input[name="name"]').fill(SECTOR_RUN_NAME);
+  const vintage = page
+    .locator('select[name="vintageId"] option')
+    .filter({ hasText: 'by sector' })
+    .first();
+  await page
+    .locator('select[name="vintageId"]')
+    .selectOption(await vintage.getAttribute('value'));
+  // Expenditure is the only approach this vintage carries, so it must be the
+  // anchor for there to be a headline at all.
+  await page.locator('select[name="anchor"]').selectOption('expenditure');
+  await page.getByRole('button', { name: 'Create run' }).click();
+
+  await expect(page.getByRole('heading', { name: SECTOR_RUN_NAME })).toBeVisible();
+  await page.getByRole('button', { name: 'Execute', exact: true }).click();
+
+  // 1700 + 60 + 550 + 600 + 40 + 10 + 700 − 710 = 2950. Each of the three
+  // consumption figures reached its own component: were the household lookup
+  // still sector-blind it would have swept up all three P.3x rows and given
+  // 2310 for households alone.
+  const gdpRow = page
+    .getByRole('table')
+    .first()
+    .getByRole('row', { name: new RegExp(`^${YEAR}`) });
+  await expect(gdpRow).toContainText('2,950');
 });

@@ -783,3 +783,36 @@ entirely reasonable on the page. The browser suite walks the whole path on a
 fixture whose income side was sourced to match the adjustment, so a defect
 anywhere in it shows up as a non-zero discrepancy rather than as a figure that
 merely looks off.
+
+## After the milestones — the institutional sector dimension is finished
+
+The brief keys every series on (transaction, activity/product, sector, period,
+price basis, valuation), and lists the institutional sectors S.11 to S.2 as
+reference data. The sectors were seeded with their sub-sectors, `time_series`
+was keyed on `sector_item_id`, the intake resolved a sector column and
+validation reported one that did not resolve. And the dimension still could
+not be used, in three linked ways:
+
+- The mapping form offered an "Institutional sector code" column but no
+  classification version to resolve it against, so mapping the column made
+  every row fail validation.
+- The assembler's observation query never selected the sector.
+- Its required-component list named `P.31_S15` and `P.3_S13`, which are not
+  seeded transaction codes and could never match. NPISH final consumption was
+  therefore unsuppliable, and silently zero because it is optional.
+
+Fixing the first without the others would have been worse than leaving it:
+`totalFor` ignores the sector, so a sector-split compilation would have had
+household consumption quietly absorb the NPISH and government rows as well.
+
+Final consumption now resolves by sector, with sub-sectors rolling up by
+prefix and a sector-free compilation still reading from the codes alone. Two
+old behaviours were tightened in the process: an unqualified `P.3` is no
+longer read as government consumption, because with no sector it is the whole
+economy's and double-counts against households; and `P.32` taken as the whole
+of government consumption now says that it is collective consumption only and
+excludes the individual services government provides. D46.
+
+Value added and the income components by institutional sector are not done —
+GDP does not need them, and the sector accounts proper are a larger piece of
+the SNA than this change.

@@ -754,3 +754,40 @@ industry, or imputed rent split across two industries all produce a problem
 and no adjustment, rather than a figure computed from a statement the compiler
 never made. Those refusals are most of `tests/compile/adjustments.test.ts`,
 because a plausible-looking wrong number is the failure mode that matters here.
+
+## D46 — Final consumption is resolved by institutional sector
+**Decision:** the three final-consumption components are read from the sector
+that did the consuming — S.14 households, S.15 NPISH, S.13 general government
+(SNA 2008 ch.4) — on any of the consumption codes P.3, P.31 and, for
+government, P.32. A compilation that keeps no sector dimension still works:
+where the sector is absent the transaction code alone resolves it, but only
+where the code names a sector unambiguously.
+**What this fixes.** The dimension was half-wired. `time_series` was keyed on
+`sector_item_id` and the intake resolved a sector column, but the mapping form
+offered no classification version for it — so a mapped sector column resolved
+to nothing and blocked the upload — and the assembler's observation query
+never selected the column anyway. Its required-component list named two codes,
+`P.31_S15` and `P.3_S13`, that are not seeded and could never match: NPISH
+final consumption was unsuppliable, and silently zero because it is optional.
+**A stated sector is honoured; an absent one falls back.** These are the same
+statement and different evidence. A blank sector means the compilation does
+not keep the dimension. An explicit `S.1` means the compiler has it and has
+said "every sector at once" — which is precisely not any one sector's figure,
+so it is never read as one. Sub-sectors roll up by prefix, which is safe for
+S.13, S.14 and S.15 and would not be for S.1.
+**An unqualified P.3 is no longer read as government.** It was, and that is a
+double count: P.3 with no sector is household plus NPISH plus government
+together, sitting beside a household P.31 that is part of it. Government
+consumption now requires either P.32 or the sector.
+**P.32 alone is used and flagged.** It is collective consumption only and
+excludes the individual services government provides to households — health
+and education above all (§9.114) — so it understates government final
+consumption expenditure, often by more than half. The figure is used, and the
+shortfall said rather than assumed away.
+**A sector split and a total-economy figure for the same sector is refused.**
+One is a double count and the other a residual; which is which is a judgement
+only the compiler can make, so neither is used.
+**Not done here:** value added and the income components by institutional
+sector. GDP does not need them, and the sector accounts proper (S.11 through
+S.2 with their own balancing items) are a larger piece of the SNA than this
+change.

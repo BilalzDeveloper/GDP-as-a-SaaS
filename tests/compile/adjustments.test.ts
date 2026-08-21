@@ -24,6 +24,8 @@ function row(
     transactionCode,
     activityItemId: activityCode ? `item-${activityCode}` : null,
     activityCode,
+    sectorItemId: null,
+    sectorCode: null,
     value,
     unitCode: 'NC_MN',
     valuation: transactionCode === 'P.1' ? 'basic' : null,

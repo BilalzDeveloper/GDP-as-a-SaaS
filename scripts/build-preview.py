@@ -317,10 +317,11 @@ DATASET = org_shell('data') + '''
     <label>Reference period *<select><option>period</option></select></label>
     <label>SNA transaction code<select><option>txn</option></select></label>
     <label>Activity code<select><option>— not mapped —</option></select></label>
-    <label>Institutional sector code<select><option>— not mapped —</option></select></label>
+    <label>Institutional sector code<select><option>sector</option></select></label>
     <label>Unit (per row, optional)<select><option>— not mapped —</option></select></label>
     <label>…or one transaction code for every row<input placeholder="P.1" readonly></label>
     <label>Activity classification version<select><option>ISIC4 Rev.4</option></select></label>
+    <label>Institutional sector classification version<select><option>SNA_SECTOR 2008</option></select></label>
     <label>Unit for the whole file<select><option>NC_MN — millions of national currency</option></select></label>
     <label>Frequency<select><option>quarterly</option></select></label>
     <label>Valuation<select><option>purchasers' prices</option></select></label>

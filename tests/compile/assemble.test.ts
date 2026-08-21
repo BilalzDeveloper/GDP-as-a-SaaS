@@ -16,6 +16,8 @@ function obs(
     transactionCode,
     activityItemId: null,
     activityCode: null,
+    sectorItemId: null,
+    sectorCode: null,
     value,
     unitCode: 'NC_MN',
     valuation: null,
@@ -26,8 +28,24 @@ function obs(
 const industry = (code: string, txn: string, value: number) =>
   obs(txn, value, { activityItemId: `item-${code}`, activityCode: code, valuation: 'basic' });
 
+/** Consumption filed against the sector that did it — the fuller form. */
+const sector = (txn: string, code: string, value: number) =>
+  obs(txn, value, { sectorItemId: `item-${code}`, sectorCode: code });
+
 const fullExpenditure = [
-  obs('P.31', 1700), obs('P.31_S15', 60), obs('P.32', 550),
+  sector('P.31', 'S.14', 1700), sector('P.31', 'S.15', 60), sector('P.3', 'S.13', 550),
+  obs('P.51g', 600), obs('P.52', 40), obs('P.53', 10),
+  obs('P.6', 700), obs('P.7', 710),
+];
+
+/**
+ * The same account from a compilation that keeps no sector dimension, which
+ * is legitimate and common. Only the codes that name a sector unambiguously
+ * can be read this way: P.31 individual consumption for households, P.32
+ * collective consumption for government.
+ */
+const sectorlessExpenditure = [
+  obs('P.31', 1700), obs('P.32', 550),
   obs('P.51g', 600), obs('P.52', 40), obs('P.53', 10),
   obs('P.6', 700), obs('P.7', 710),
 ];
@@ -138,7 +156,7 @@ describe('expenditure approach', () => {
     const result = assemblePeriod(
       'p1', '2023',
       fullExpenditure.filter(
-        (o) => !['P.31_S15', 'P.52', 'P.53'].includes(o.transactionCode),
+        (o) => o.sectorCode !== 'S.15' && !['P.52', 'P.53'].includes(o.transactionCode),
       ),
     );
     expect(result.expenditure?.npishFinalConsumption).toBe(0);
@@ -147,12 +165,72 @@ describe('expenditure approach', () => {
     expect(result.expenditure).toBeDefined();
   });
 
-  it('accepts P.3 where P.32 is not reported separately', () => {
-    const rows = fullExpenditure.map((o) =>
+  it('reads a compilation that keeps no sector dimension', () => {
+    const result = assemblePeriod('p1', '2023', sectorlessExpenditure);
+    expect(result.expenditure?.householdFinalConsumption).toBe(1700);
+    expect(result.expenditure?.governmentFinalConsumption).toBe(550);
+  });
+
+  it('says that P.32 alone understates government consumption', () => {
+    // P.32 is collective consumption. Government also provides individual
+    // services — health and education above all — and those are in P.31 of
+    // S.13. Taking P.32 for the whole is often out by more than half, so the
+    // figure is used and the shortfall said rather than assumed away.
+    const result = assemblePeriod('p1', '2023', sectorlessExpenditure);
+    const problem = result.problems.find((p) => p.code === 'sector_coverage');
+    expect(problem?.message).toContain('collective consumption only');
+    expect(problem?.message).toContain('S.13');
+  });
+
+  it('will not read an unqualified P.3 as any one sector', () => {
+    // P.3 with no sector is the whole economy's final consumption:
+    // households, NPISH and government together. Reading it as government's —
+    // which this did until the sector dimension worked — double-counts it
+    // against the household figure sitting beside it.
+    const rows = sectorlessExpenditure.map((o) =>
       o.transactionCode === 'P.32' ? obs('P.3', 550) : o,
     );
     const result = assemblePeriod('p1', '2023', rows);
+    expect(result.expenditure).toBeUndefined();
+    expect(
+      result.problems.find((p) => p.approach === 'expenditure')?.message,
+    ).toContain('S.13');
+  });
+
+  it('refuses a sector split and a total-economy figure for the same sector', () => {
+    const result = assemblePeriod('p1', '2023', [
+      ...fullExpenditure,
+      obs('P.31', 1760),
+    ]);
+    expect(result.expenditure).toBeUndefined();
+    const problem = result.problems.find((p) => p.code === 'sector_coverage');
+    expect(problem?.message).toContain('double count');
+  });
+
+  it('rolls sub-sectors up to the sector that owns them', () => {
+    // A compilation keeping central, state and local government separately
+    // still has one government final consumption figure. S.1311 and the rest
+    // are within S.13 by construction of the SNA numbering.
+    const rows = [
+      ...fullExpenditure.filter((o) => o.sectorCode !== 'S.13'),
+      sector('P.3', 'S.1311', 400),
+      sector('P.3', 'S.1313', 150),
+    ];
+    const result = assemblePeriod('p1', '2023', rows);
     expect(result.expenditure?.governmentFinalConsumption).toBe(550);
+  });
+
+  it('does not read the total economy as a sector', () => {
+    // S.1 is every sector at once. It is not households, and prefix matching
+    // would say it was if it were applied naively.
+    const result = assemblePeriod('p1', '2023', [
+      ...fullExpenditure.filter((o) => o.sectorCode === null),
+      sector('P.31', 'S.1', 2310),
+    ]);
+    expect(result.expenditure).toBeUndefined();
+    expect(
+      result.problems.find((p) => p.approach === 'expenditure')?.message,
+    ).toContain('S.14');
   });
 });
 

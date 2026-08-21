@@ -76,6 +76,14 @@ export default async function DatasetPage({
        order by (c.owner_org_id is not null), c.code
     `)) as unknown as { id: string; code: string; version_label: string }[];
 
+    const sectorVersions = (await tx.execute(sql`
+      select v.id, c.code, v.version_label
+        from classification_version v
+        join classification c on c.id = v.classification_id
+       where c.kind = 'institutional_sector'
+       order by (c.owner_org_id is not null), c.code
+    `)) as unknown as { id: string; code: string; version_label: string }[];
+
     const units = (await tx.execute(
       sql`select code, name from unit order by code`,
     )) as unknown as { code: string; name: string }[];
@@ -87,12 +95,14 @@ export default async function DatasetPage({
       staged: staged[0],
       committed: committed[0].n,
       versions: [...versions],
+      sectorVersions: [...sectorVersions],
       units: [...units],
     };
   });
 
   if (!data) notFound();
-  const { org, dataset, issues, staged, committed, versions, units } = data;
+  const { org, dataset, issues, staged, committed, versions, sectorVersions, units } =
+    data;
   const header = dataset.header ?? [];
   const errorCount = issues
     .filter((i) => i.severity === 'error')
@@ -211,6 +221,17 @@ export default async function DatasetPage({
             <select name="activityVersionId" defaultValue="">
               <option value="">— none —</option>
               {versions.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.code} {v.version_label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Institutional sector classification version
+            <select name="sectorVersionId" defaultValue="">
+              <option value="">— none —</option>
+              {sectorVersions.map((v) => (
                 <option key={v.id} value={v.id}>
                   {v.code} {v.version_label}
                 </option>

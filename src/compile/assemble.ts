@@ -24,6 +24,8 @@ export interface ObservationRow {
   transactionCode: string;
   activityItemId: string | null;
   activityCode: string | null;
+  sectorItemId: string | null;
+  sectorCode: string | null;
   value: number | null;
   unitCode: string;
   valuation: 'basic' | 'producers' | 'purchasers' | null;
@@ -38,7 +40,8 @@ export interface AssemblyProblem {
     | 'mixed_units'
     | 'wrong_valuation'
     | 'duplicate_total'
-    | 'adjustment_incomplete';
+    | 'adjustment_incomplete'
+    | 'sector_coverage';
   message: string;
 }
 
@@ -86,8 +89,8 @@ export interface AssembledPeriod {
  */
 const EXPENDITURE_COMPONENTS: [keyof ExpenditureInput, string][] = [
   ['householdFinalConsumption', 'P.31'],
-  ['npishFinalConsumption', 'P.31_S15'],
-  ['governmentFinalConsumption', 'P.3_S13'],
+  ['npishFinalConsumption', 'P.3'],
+  ['governmentFinalConsumption', 'P.3'],
   ['grossFixedCapitalFormation', 'P.51g'],
   ['changesInInventories', 'P.52'],
   ['acquisitionsLessDisposalsOfValuables', 'P.53'],
@@ -122,6 +125,137 @@ function totalFor(rows: readonly ObservationRow[], code: string): number | undef
   );
   if (matching.length === 0) return undefined;
   return matching.reduce((sum, r) => sum + (r.value as number), 0);
+}
+
+/**
+ * Institutional sectors the three final-consumption components belong to.
+ * SNA 2008 ch.4: S.13 general government, S.14 households, S.15 NPISH.
+ */
+const CONSUMPTION_SECTOR = {
+  householdFinalConsumption: 'S.14',
+  npishFinalConsumption: 'S.15',
+  governmentFinalConsumption: 'S.13',
+} as const;
+
+/**
+ * Consumption codes each component may be filed on.
+ *
+ * P.3 is final consumption expenditure; P.31 its individual part and P.32 its
+ * collective part (SNA 2008 §9.42). Households and NPISH have no collective
+ * consumption, so P.32 belongs to government alone.
+ */
+const CONSUMPTION_CODES = {
+  householdFinalConsumption: ['P.3', 'P.31'],
+  npishFinalConsumption: ['P.3', 'P.31'],
+  governmentFinalConsumption: ['P.3', 'P.31', 'P.32'],
+} as const;
+
+/**
+ * A row that speaks for the economy as a whole rather than for one sector:
+ * no sector at all, or the total-economy sector S.1 named explicitly.
+ *
+ * The two are the same statement but not the same evidence. A blank sector
+ * means the compilation does not keep the dimension, and the transaction code
+ * alone has to say whose consumption it is. An explicit S.1 means the
+ * compiler has the dimension and has used it to say "every sector at once" —
+ * which is precisely not any one sector's figure, so it is never read as one.
+ */
+function isTotalEconomy(row: ObservationRow): boolean {
+  return row.sectorCode === null || row.sectorCode === 'S.1';
+}
+
+/**
+ * SNA sector codes nest by prefix — S.1311 central government is within S.13
+ * general government, S.141 employers within S.14 households — so a
+ * compilation may file consumption at whatever level of detail it keeps and
+ * still have it reach the right component.
+ *
+ * Only ever called with S.13, S.14 or S.15, which is what makes plain prefix
+ * matching safe: every code beginning "S.13" is a government sub-sector. It
+ * would NOT be safe against S.1, where every code in the economy matches.
+ */
+function withinSector(code: string | null, sector: string): boolean {
+  return code !== null && code.startsWith(sector);
+}
+
+/**
+ * One final-consumption component, resolved by institutional sector where the
+ * compilation supplies one and by transaction code alone where it does not.
+ *
+ * A compilation that files consumption against sectors and one that files it
+ * on separate codes are both legitimate, and this reads either. What it will
+ * not do is read a mixture: a total-economy P.31 sitting alongside
+ * sector-split P.31 rows is either a double count or a residual, and only the
+ * compiler knows which. Summing them would produce a household figure that
+ * silently contains NPISH and government consumption too — a number that
+ * looks entirely ordinary in a published table.
+ */
+function consumptionFor(
+  rows: readonly ObservationRow[],
+  field: keyof typeof CONSUMPTION_SECTOR,
+  periodLabel: string,
+  problems: AssemblyProblem[],
+): number | undefined {
+  const sector = CONSUMPTION_SECTOR[field];
+  const codes: readonly string[] = CONSUMPTION_CODES[field];
+  const usable = rows.filter(
+    (r) =>
+      codes.includes(r.transactionCode) && r.activityItemId === null && r.value !== null,
+  );
+
+  const bySector = usable.filter((r) => withinSector(r.sectorCode, sector));
+  const totals = usable.filter(isTotalEconomy);
+
+  if (bySector.length > 0 && totals.length > 0) {
+    problems.push({
+      periodLabel,
+      approach: 'expenditure',
+      code: 'sector_coverage',
+      message:
+        `Final consumption for ${sector} is supplied both against the sector ` +
+        `and as a total-economy figure on ${[...new Set(totals.map((r) => r.transactionCode))].join(', ')}. ` +
+        `One of them is a double count and the other a residual, and which is ` +
+        `which is a judgement only the compiler can make, so neither was used.`,
+    });
+    return undefined;
+  }
+
+  if (bySector.length > 0) {
+    return bySector.reduce((sum, r) => sum + (r.value as number), 0);
+  }
+
+  // No sector dimension in this compilation. Fall back to the code alone —
+  // but only where the code identifies the sector unambiguously, which rules
+  // out P.3 and P.31: an unqualified "final consumption expenditure" belongs
+  // to no sector in particular.
+  const unambiguous: Partial<Record<keyof typeof CONSUMPTION_SECTOR, string>> = {
+    householdFinalConsumption: 'P.31',
+    governmentFinalConsumption: 'P.32',
+  };
+  const code = unambiguous[field];
+  if (!code) return undefined;
+  const sectorless = usable.filter((r) => r.transactionCode === code && r.sectorCode === null);
+  if (sectorless.length === 0) return undefined;
+  const total = sectorless.reduce((sum, r) => sum + (r.value as number), 0);
+
+  // P.32 is collective consumption only. Government final consumption
+  // expenditure is P.3 of S.13 and also covers the individual services
+  // government provides to households — health and education above all
+  // (SNA 2008 §9.114). Taking P.32 for the whole understates it, often by
+  // more than half, so this is said rather than assumed away.
+  if (code === 'P.32') {
+    problems.push({
+      periodLabel,
+      approach: 'expenditure',
+      code: 'sector_coverage',
+      message:
+        `Government final consumption was taken from P.32, which is collective ` +
+        `consumption only. It excludes the individual services government ` +
+        `provides to households, so the figure understates it. File ` +
+        `consumption against sector S.13 to have both parts counted.`,
+    });
+  }
+  return total;
 }
 
 function checkUnits(
@@ -409,13 +543,31 @@ export function assemblePeriod(
     const values: Record<string, number> = {};
     const missing: string[] = [];
 
-    // Household and government consumption are read from the sector-agnostic
-    // codes this milestone stores; the sector split arrives with the sector
-    // dimension in a later milestone.
+    // The three final-consumption components are the ones the institutional
+    // sector matters for: they are the same transaction, told apart by who
+    // does the consuming. Everything else is a total-economy figure on a code
+    // of its own.
+    for (const field of [
+      'householdFinalConsumption',
+      'npishFinalConsumption',
+      'governmentFinalConsumption',
+    ] as const) {
+      const found = consumptionFor(rows, field, periodLabel, problems);
+      if (found === undefined) {
+        if (OPTIONAL_EXPENDITURE.has(field)) values[field] = 0;
+        else {
+          // Named so a compiler can act on it: which sector's consumption is
+          // absent, and what would supply it.
+          const sector = CONSUMPTION_SECTOR[field];
+          const codes = CONSUMPTION_CODES[field].join('/');
+          missing.push(`${sector} final consumption (${codes} against sector ${sector})`);
+        }
+      } else {
+        values[field] = found;
+      }
+    }
+
     const lookups: [keyof ExpenditureInput, string[]][] = [
-      ['householdFinalConsumption', ['P.31']],
-      ['npishFinalConsumption', ['P.31_S15']],
-      ['governmentFinalConsumption', ['P.32', 'P.3']],
       ['grossFixedCapitalFormation', ['P.51g']],
       ['changesInInventories', ['P.52']],
       ['acquisitionsLessDisposalsOfValuables', ['P.53']],
