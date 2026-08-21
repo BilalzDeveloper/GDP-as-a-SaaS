@@ -731,3 +731,87 @@ button.link {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* -----------------------------------------------------------------------------
+   The user guide
+   -------------------------------------------------------------------------- */
+/* Long-form prose rather than a dashboard: a narrower measure than the app's
+   tables want, and headings that carry an anchor a reader can link to. */
+
+.guide {
+  max-width: 52rem;
+}
+
+.guide h2 {
+  margin-top: 2.6rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--line);
+  scroll-margin-top: 1rem;
+}
+
+.guide h3 {
+  margin-top: 1.8rem;
+}
+
+.guide p,
+.guide li {
+  max-width: 68ch;
+}
+
+.guide ul,
+.guide ol {
+  padding-left: 1.2rem;
+  line-height: 1.65;
+}
+
+.guide li + li {
+  margin-top: 0.45rem;
+}
+
+.guide code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--surface-2);
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+}
+
+.guide-contents {
+  columns: 2;
+  column-gap: 2rem;
+  padding-left: 1.1rem;
+  margin: 0;
+}
+
+@media (max-width: 40rem) {
+  .guide-contents {
+    columns: 1;
+  }
+}
+
+/* A numbered step of the walk-through: the number sits in the margin so the
+   sequence reads at a glance without becoming a list of bare digits. */
+.guide-step {
+  margin-top: 1.8rem;
+}
+
+.guide-step h3 {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin-top: 0;
+}
+
+.guide-step-n {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 50%;
+  background: var(--accent-wash);
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}

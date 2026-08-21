@@ -824,3 +824,28 @@ wholesale on each execution, not audited, reproducible from the vintage and
 the method version. It carries the same RLS as `compilation_result`, because
 knowing which source records lie behind a pre-release estimate is as
 market-sensitive as the estimate.
+
+## D48 — The user guide lives in the product, and is public
+**Decision:** `/help` is a page of the application, linked from the identity
+bar on every screen and reachable without an account. `docs/` stays where it
+is and keeps its audience — the person maintaining the code.
+**Why in the product.** A compiler meets a refusal at the moment they are
+mapping a column or reading a diagnostic. Documentation they have to go and
+find in a repository is documentation they will not read, and the questions
+this platform provokes are not incidental: it deliberately refuses to compile
+rather than publish a plausible wrong number, and every refusal needs an
+explanation within reach of the screen that produced it.
+**Why public.** It names no tenant and holds no figures — the page reads no
+data at all — and someone evaluating whether the platform suits their office
+is exactly who needs to read how it behaves. The middleware gates `/orgs`; it
+never gated everything, so this needed no change to the security boundary.
+**Written from the screens, not from intent.** Every button name, message code
+and rule in it is the one the application actually uses. Browser tests assert
+that the page loads signed-out, that the identity-bar link reaches it, that
+the contents jump to the sections they name, and that the transaction codes a
+compilation will refuse over are all documented. If a code is renamed and that
+test fails, the guide needed updating in the same change — which is the point.
+**It states the limitations.** The three standing caveats (D12, D16, D31) and
+the missing sector accounts are in the guide, in the same words as everywhere
+else. An NSO deciding what to rely on should not have to read the repository
+to find out what has not been verified.

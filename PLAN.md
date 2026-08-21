@@ -843,3 +843,26 @@ rows and is shown without a link rather than with one leading nowhere. D47.
 The new panel that came with it, "Components", is the part a compiler will
 notice: the expenditure and income components each approach was built from,
 each with a way back to the observations behind it.
+
+## After the milestones — the product documents itself
+
+Eight milestones of working software, and nothing in the product told a
+compiler how to use it. `docs/` is developer documentation — the schema, the
+engine's contract, how to run the test suites — and an NSO statistician
+mapping a column at four in the afternoon is not its reader.
+
+`/help` is now a page of the application, linked from the identity bar on
+every screen and readable without an account: the seven steps from source file
+to published figure, how to prepare a file, every transaction code the
+compilation reads, the institutional sectors, the FISIM and imputed-rent
+codes, how to read the results, what the messages mean, and what the platform
+refuses to compile and why. D48.
+
+The last section is the one that matters most for an office deciding what to
+rely on: the three standing caveats and the missing sector accounts, in the
+guide, in the same words they appear everywhere else.
+
+It is public because it names no tenant and holds no figures, and someone
+evaluating the platform is exactly who needs it. Browser tests hold it to the
+application's real vocabulary, so a renamed code fails the suite rather than
+quietly making the guide wrong.

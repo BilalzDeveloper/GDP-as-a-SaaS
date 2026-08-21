@@ -186,6 +186,12 @@ export default async function DatasetPage({
         </ol>
 
         <h2>Map the columns</h2>
+        <p className="muted">
+          A code column needs a classification version to resolve against, or
+          every row fails. See{' '}
+          <Link href="/help#file-format">preparing your source file</Link> and{' '}
+          <Link href="/help#codes">transaction codes</Link>.
+        </p>
         <form className="stack wide" action={applyMapping}>
           <input type="hidden" name="slug" value={org.slug} />
           <input type="hidden" name="datasetId" value={dataset.id} />

@@ -33,6 +33,9 @@ export function IdentityBar({
         <div className="identity-right">
           {orgName && <span>{orgName}</span>}
           {email && <span className="mono">{email}</span>}
+          {/* Reachable from every page, signed in or not: someone stuck on a
+              validation message should not have to go looking. */}
+          <Link href="/help">Help</Link>
           {email && (
             <form action={signOut}>
               <button className="link" type="submit">

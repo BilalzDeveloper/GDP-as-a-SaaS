@@ -278,6 +278,10 @@ export default async function RunsPage({
               vintage.
             </p>
             <p className="muted">
+              What each setting changes, and why they are fixed per run rather
+              than globally: <Link href="/help#compiling">the seven steps</Link>.
+            </p>
+            <p className="muted">
               FISIM and imputed rent are supplied on the FISIM.* and IMPRENT.*
               codes and applied by the engine, not summed into a total. Under
               the allocated treatment the part producers consume is

@@ -126,6 +126,11 @@ Working rules for sessions on this repo:
 - **Audited writes need a reason, and the reason is read by people.** Anything
   passed to `withRls(claims, { reason })` shows up on the audit page — name
   what was acted on rather than quoting an id (D41).
+- **The user guide is part of the product.** `src/app/help/page.tsx` is
+  written for the compiler, not the maintainer, and states the application's
+  real button names, codes and messages (D48). Behaviour changes update it in
+  the same commit; `tests/e2e/access.spec.ts` fails if a documented code goes
+  away.
 - **Every figure records what it was summed from.** `src/compile/sources.ts`
   is the single definition of which observations feed which measure; execution
   writes it to `result_source` and drill-down reads that record rather than

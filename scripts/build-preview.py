@@ -756,6 +756,95 @@ AUDIT = org_shell('audit') + """
 </main>"""
 
 
+HELP = plain_bar() + """
+<main class="guide">
+  <h1>User guide</h1>
+  <p class="lede">How to take source data from a survey, an administrative
+    register or a set of government accounts, and turn it into a GDP estimate
+    you can defend line by line.</p>
+
+  <section class="panel">
+    <div class="panel-head"><h3>On this page</h3></div>
+    <div class="panel-body"><ul class="guide-contents">
+      <li><a href="#">What this platform does</a></li>
+      <li><a href="#">Roles and permissions</a></li>
+      <li><a href="#">Compiling: the seven steps</a></li>
+      <li><a href="#">Preparing your source file</a></li>
+      <li><a href="#">Transaction codes</a></li>
+      <li><a href="#">Institutional sectors</a></li>
+      <li><a href="#">FISIM and imputed rent</a></li>
+      <li><a href="#">Reading the results</a></li>
+      <li><a href="#">Volume measures and non-additivity</a></li>
+      <li><a href="#">Quarterly accounts</a></li>
+      <li><a href="#">Review, embargo and publication</a></li>
+      <li><a href="#">The audit trail</a></li>
+      <li><a href="#">When the platform refuses to compile</a></li>
+      <li><a href="#">What the messages mean</a></li>
+      <li><a href="#">Known limitations</a></li>
+    </ul></div>
+  </section>
+
+  <h2>Compiling: the seven steps</h2>
+
+  <section class="guide-step">
+    <h3><span class="guide-step-n">1</span> Define your reference periods</h3>
+    <p><strong>Source data &#8594; Reference periods.</strong> Give the fiscal
+      year and whether you want annual periods, quarterly, or both.</p>
+    <p>Do this first: an uploaded row whose period does not exist yet cannot be
+      filed anywhere, and will fail validation with
+      <code>unknown_period</code>.</p>
+  </section>
+
+  <section class="guide-step">
+    <h3><span class="guide-step-n">2</span> Upload a source file</h3>
+    <p>CSV or XLSX, with a line of <strong>provenance</strong> &#8212; where the
+      data came from. That line is what a reviewer reads when they ask where a
+      number came from, and it appears next to the file&#8217;s checksum in the
+      drill-down.</p>
+  </section>
+
+  <section class="guide-step">
+    <h3><span class="guide-step-n">3</span> Map the columns</h3>
+    <p>Tell the platform which of your columns holds the value, the period, the
+      transaction code, and &#8212; where you have them &#8212; the activity and
+      institutional sector codes. A code column mapped without a classification
+      version cannot resolve, and every row will fail.</p>
+  </section>
+
+  <h2>Institutional sectors</h2>
+  <p>Final consumption is the one place where the same transaction is told
+    apart by <em>who</em> did the consuming.</p>
+  <section class="panel"><div class="panel-scroll"><table>
+    <thead><tr><th>Sector</th><th>Becomes</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">S.14</td><td>Household final consumption</td></tr>
+      <tr><td class="mono">S.15</td><td>NPISH final consumption</td></tr>
+      <tr><td class="mono">S.13</td><td>Government final consumption</td></tr>
+    </tbody>
+  </table></div></section>
+  <p>Sub-sectors roll up: central, state and local government kept separately
+    still produce one government figure.</p>
+  <p><strong>If you keep no sector dimension</strong>, leave the column
+    unmapped and the transaction code resolves it &#8212; but only where the
+    code names a sector unambiguously. An unqualified <code>P.3</code> is
+    <em>not</em> read as any sector&#8217;s consumption, and <code>P.32</code>
+    alone understates government consumption because it excludes the individual
+    services government provides to households.</p>
+
+  <h2>Known limitations</h2>
+  <p>Stated plainly, because an NSO needs to know what it is relying on:</p>
+  <ul>
+    <li><strong>The classification seeds are transcribed, not downloaded.</strong>
+      Marked unverified in the data itself.</li>
+    <li><strong>The engine has not been checked against published national
+      accounts.</strong> Internally consistent and extensively tested, but not
+      yet reconciled figure-for-figure with a real country&#8217;s accounts.</li>
+    <li><strong>The SDMX-CSV output has not been through a validator.</strong></li>
+    <li><strong>Value added by institutional sector is not compiled.</strong></li>
+  </ul>
+</main>"""
+
+
 SCREENS = [
     ('landing', 'Landing', '/', LANDING,
      'Signed out. The three guarantees are the ones the brief calls '
@@ -799,6 +888,11 @@ SCREENS = [
      'A quarterly run benchmarked to the annual accounts by the Denton '
      'method. The indicator is kept beside the reconciled figure, because the '
      'ratio between them is how a compiler judges the indicator.'),
+    ('help', 'User guide', '/help', HELP,
+     'The product documents itself, in the product. Public and linked from '
+     'every page, because a compiler meets a refusal at the moment they are '
+     'mapping a column — and because the last section, the one listing what '
+     'has not been verified, is what a procuring office needs to read.'),
 ]
 
 
@@ -806,7 +900,8 @@ def build() -> str:
     app_css = scoped_app_css()
     rail = []
     frames = []
-    groups = [('Getting in', 2), ('Setting up', 3), ('Compiling', 6)]
+    groups = [('Getting in', 2), ('Setting up', 3), ('Compiling', 6),
+              ('Using it', 1)]
     i = 0
     for label, count in groups:
         rail.append(f'<p class="rail-group">{label}</p>')

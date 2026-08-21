@@ -38,7 +38,7 @@ three approaches with full audit trails and reproducible vintages.
   applied by the engine under a per-run treatment, with a half-specified
   adjustment refused rather than compiled.
 
-544 Vitest tests and 40 Playwright flows run in CI.
+544 Vitest tests and 45 Playwright flows run in CI.
 
 Three caveats worth knowing before relying on output, each marked in the data
 or the code rather than only here: the classification seeds are transcribed
@@ -122,6 +122,16 @@ python3 scripts/build-preview.py preview.html
 
 It reads `globals.css` at build time and re-scopes it, so the preview cannot
 drift from the application it is showing.
+
+## User guide
+
+The product documents itself at **`/help`** — linked from the identity bar on
+every page and readable without an account. It is written for the person
+compiling the accounts: the seven steps from source file to published figure,
+how to prepare a file, what every transaction code means, which messages
+matter and what to do about them, and what the platform will refuse to compile
+and why. The `docs/` folder is the other audience — the person maintaining the
+code.
 
 ## Audit trail
 

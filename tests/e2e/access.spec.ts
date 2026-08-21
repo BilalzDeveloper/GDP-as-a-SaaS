@@ -100,3 +100,46 @@ test.describe('registering and signing in', () => {
     );
   });
 });
+
+test.describe('the user guide', () => {
+  test('is reachable without an account', async ({ page }) => {
+    // Someone evaluating the platform, or a compiler stuck on a validation
+    // message at the sign-in screen, should not have to log in to read it.
+    await page.goto('/help');
+    await expect(page.getByRole('heading', { name: 'User guide', level: 1 })).toBeVisible();
+    await expect(page).toHaveURL(/\/help$/);
+  });
+
+  test('is one click from anywhere, signed out', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('link', { name: 'Help' }).click();
+    await expect(page.getByRole('heading', { name: 'User guide', level: 1 })).toBeVisible();
+  });
+
+  test('its contents jump to the sections they name', async ({ page }) => {
+    await page.goto('/help');
+    await page.getByRole('link', { name: 'Institutional sectors' }).first().click();
+    await expect(page).toHaveURL(/#sectors$/);
+    await expect(
+      page.getByRole('heading', { name: 'Institutional sectors', level: 2 }),
+    ).toBeVisible();
+  });
+
+  test('documents the codes a compiler has to get right', async ({ page }) => {
+    // The guide is only worth having if it is accurate, and these are the
+    // parts the application will refuse over. If a code is renamed and this
+    // fails, the guide needed updating with it.
+    await page.goto('/help');
+    for (const code of ['P.31', 'P.32', 'D.21', 'POP', 'FISIM.P2', 'IMPRENT.P1']) {
+      await expect(page.getByText(code, { exact: true }).first()).toBeVisible();
+    }
+  });
+
+  test('offers no way in that a signed-out visitor does not have', async ({ page }) => {
+    // The guide is public, so it must hold nothing tenant-specific: no
+    // organization names, no figures, and no sign-out for someone with no
+    // session.
+    await page.goto('/help');
+    await expect(page.getByRole('button', { name: 'Sign out' })).toHaveCount(0);
+  });
+});
