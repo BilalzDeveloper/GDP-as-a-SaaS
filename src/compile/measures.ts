@@ -25,6 +25,18 @@ export const MEASURE = {
   statisticalDiscrepancy: 'statistical_discrepancy',
   /** The published figure, per the run's anchor (summary row). */
   headlineGdp: 'headline_gdp',
+  /** Mid-year resident population used as the per-capita denominator. */
+  population: 'population',
+  /**
+   * Headline GDP ÷ population, stated in UNITS of the national currency —
+   * not in the millions the accounts are compiled in, which would round away
+   * to nothing. See src/compile/derived.ts.
+   */
+  gdpPerCapita: 'gdp_per_capita',
+  /** Headline GDP against the previous period, per cent. */
+  gdpGrowthPercent: 'gdp_growth_percent',
+  /** Headline GDP against the same period a year earlier, per cent. */
+  gdpGrowthYearOnYearPercent: 'gdp_growth_yoy_percent',
 } as const;
 
 export type Measure = (typeof MEASURE)[keyof typeof MEASURE];

@@ -25,8 +25,11 @@ three approaches with full audit trails and reproducible vintages.
 - **Quarterly accounts** — quarterly compilation benchmarked to the annual
   accounts by the Denton method, with the reconciliation stored and the
   extrapolated quarters flagged.
+- **Per-capita GDP and growth rates** — population uploaded as a memorandum
+  observation, per-capita stated in units of the currency, and growth
+  period-on-period and year-on-year.
 
-494 Vitest tests and 34 Playwright flows run in CI.
+506 Vitest tests and 36 Playwright flows run in CI.
 
 Three caveats worth knowing before relying on output, each marked in the data
 or the code rather than only here: the classification seeds are transcribed

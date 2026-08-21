@@ -1,27 +1,28 @@
-code,name,sna2008_ref,sort_order,description
-P.1,Output,SNA 2008 ch.6,10,Goods and services produced within an establishment that become available for use outside it
-P.2,Intermediate consumption,SNA 2008 ch.6,20,Goods and services consumed as inputs by a process of production
-B.1g,Value added; gross,SNA 2008 ch.6,30,Output less intermediate consumption; before deduction of consumption of fixed capital
-P.51c,Consumption of fixed capital,SNA 2008 ch.6,40,Decline in the value of fixed assets used in production during the period
-B.1n,Value added; net,SNA 2008 ch.6,50,Gross value added less consumption of fixed capital
-B.1*g,Gross domestic product,SNA 2008 ch.2,60,GDP at market prices; the headline aggregate of all three approaches
-D.21,Taxes on products,SNA 2008 ch.7,70,Taxes payable per unit of a good or service produced or transacted
-D.31,Subsidies on products,SNA 2008 ch.7,80,Subsidies payable per unit of a good or service produced or imported
-D.2,Taxes on production and imports,SNA 2008 ch.7,90,Taxes on products plus other taxes on production
-D.29,Other taxes on production,SNA 2008 ch.7,100,Taxes on production other than taxes on products
-D.3,Subsidies,SNA 2008 ch.7,110,Subsidies on products plus other subsidies on production
-D.39,Other subsidies on production,SNA 2008 ch.7,120,Subsidies on production other than subsidies on products
-D.1,Compensation of employees,SNA 2008 ch.7,130,Total remuneration payable by an employer to an employee for work done
-D.11,Wages and salaries,SNA 2008 ch.7,140,Compensation of employees excluding employers' social contributions
-D.12,Employers' social contributions,SNA 2008 ch.7,150,Social contributions payable by employers on behalf of employees
-B.2g,Operating surplus; gross,SNA 2008 ch.7,160,Surplus accruing from production before deduction of consumption of fixed capital
-B.3g,Mixed income; gross,SNA 2008 ch.7,170,Surplus of unincorporated enterprises owned by households; includes an unseparable labour element
-P.3,Final consumption expenditure,SNA 2008 ch.9,180,Expenditure on goods and services used to satisfy individual or collective needs
-P.31,Individual consumption expenditure,SNA 2008 ch.9,190,Final consumption expenditure on individual goods and services
-P.32,Collective consumption expenditure,SNA 2008 ch.9,200,Government final consumption expenditure on collective services
-P.4,Actual final consumption,SNA 2008 ch.9,210,Consumption of goods and services acquired; including social transfers in kind
-P.51g,Gross fixed capital formation,SNA 2008 ch.10,220,Acquisitions less disposals of fixed assets during the period
-P.52,Changes in inventories,SNA 2008 ch.10,230,Value of entries into less withdrawals from inventories; plus recurrent losses
-P.53,Acquisitions less disposals of valuables,SNA 2008 ch.10,240,Net acquisitions of stores of value such as precious metals and art
-P.6,Exports of goods and services,SNA 2008 ch.14,250,Sales; barter or transfers of goods and services from residents to non-residents
-P.7,Imports of goods and services,SNA 2008 ch.14,260,Purchases; barter or transfers of goods and services from non-residents to residents
+code,name,sna2008_ref,sort_order,description,kind
+P.1,Output,SNA 2008 ch.6,10,Goods and services produced within an establishment that become available for use outside it,transaction
+P.2,Intermediate consumption,SNA 2008 ch.6,20,Goods and services consumed as inputs by a process of production,transaction
+B.1g,Value added; gross,SNA 2008 ch.6,30,Output less intermediate consumption; before deduction of consumption of fixed capital,transaction
+P.51c,Consumption of fixed capital,SNA 2008 ch.6,40,Decline in the value of fixed assets used in production during the period,transaction
+B.1n,Value added; net,SNA 2008 ch.6,50,Gross value added less consumption of fixed capital,transaction
+B.1*g,Gross domestic product,SNA 2008 ch.2,60,GDP at market prices; the headline aggregate of all three approaches,transaction
+D.21,Taxes on products,SNA 2008 ch.7,70,Taxes payable per unit of a good or service produced or transacted,transaction
+D.31,Subsidies on products,SNA 2008 ch.7,80,Subsidies payable per unit of a good or service produced or imported,transaction
+D.2,Taxes on production and imports,SNA 2008 ch.7,90,Taxes on products plus other taxes on production,transaction
+D.29,Other taxes on production,SNA 2008 ch.7,100,Taxes on production other than taxes on products,transaction
+D.3,Subsidies,SNA 2008 ch.7,110,Subsidies on products plus other subsidies on production,transaction
+D.39,Other subsidies on production,SNA 2008 ch.7,120,Subsidies on production other than subsidies on products,transaction
+D.1,Compensation of employees,SNA 2008 ch.7,130,Total remuneration payable by an employer to an employee for work done,transaction
+D.11,Wages and salaries,SNA 2008 ch.7,140,Compensation of employees excluding employers' social contributions,transaction
+D.12,Employers' social contributions,SNA 2008 ch.7,150,Social contributions payable by employers on behalf of employees,transaction
+B.2g,Operating surplus; gross,SNA 2008 ch.7,160,Surplus accruing from production before deduction of consumption of fixed capital,transaction
+B.3g,Mixed income; gross,SNA 2008 ch.7,170,Surplus of unincorporated enterprises owned by households; includes an unseparable labour element,transaction
+P.3,Final consumption expenditure,SNA 2008 ch.9,180,Expenditure on goods and services used to satisfy individual or collective needs,transaction
+P.31,Individual consumption expenditure,SNA 2008 ch.9,190,Final consumption expenditure on individual goods and services,transaction
+P.32,Collective consumption expenditure,SNA 2008 ch.9,200,Government final consumption expenditure on collective services,transaction
+P.4,Actual final consumption,SNA 2008 ch.9,210,Consumption of goods and services acquired; including social transfers in kind,transaction
+P.51g,Gross fixed capital formation,SNA 2008 ch.10,220,Acquisitions less disposals of fixed assets during the period,transaction
+P.52,Changes in inventories,SNA 2008 ch.10,230,Value of entries into less withdrawals from inventories; plus recurrent losses,transaction
+P.53,Acquisitions less disposals of valuables,SNA 2008 ch.10,240,Net acquisitions of stores of value such as precious metals and art,transaction
+P.6,Exports of goods and services,SNA 2008 ch.14,250,Sales; barter or transfers of goods and services from residents to non-residents,transaction
+P.7,Imports of goods and services,SNA 2008 ch.14,260,Purchases; barter or transfers of goods and services from non-residents to residents,transaction
+POP,Total population,SNA 2008 ch.19; presentation per ch.20 §20.2,900,Mid-year (or period-average) resident population. A memorandum item; never summed into an aggregate; used only as the denominator of per-capita measures,memorandum

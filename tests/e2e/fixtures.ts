@@ -117,7 +117,10 @@ export function annualCsv(periodLabel: string): string {
 }
 
 /** Map the uploaded columns and stage them for validation. */
-export async function applyStandardMapping(page: Page): Promise<void> {
+export async function applyStandardMapping(
+  page: Page,
+  unitCode = 'NC_MN',
+): Promise<void> {
   // Selects are addressed by name: Playwright folds a wrapped select's option
   // text into its accessible name, so label-based lookup is ambiguous here.
   await page.locator('select[name="col_value"]').selectOption('value');
@@ -132,6 +135,7 @@ export async function applyStandardMapping(page: Page): Promise<void> {
   await page
     .locator('select[name="activityVersionId"]')
     .selectOption(await isic.getAttribute('value'));
+  await page.locator('select[name="unitCode"]').selectOption(unitCode);
   await page.getByRole('button', { name: 'Apply mapping and validate' }).click();
   // Wait for the staged state rather than for the click: the action redirects,
   // and anything typed before that lands on the page about to be replaced.
@@ -144,5 +148,17 @@ export async function applyStandardMapping(page: Page): Promise<void> {
 export async function commitInto(page: Page, vintageName: string): Promise<void> {
   await page.locator('input[name="vintageName"]').fill(vintageName);
   await page.getByRole('button', { name: 'Commit staged rows' }).click();
-  await expect(page.getByText(/observations committed/)).toBeVisible();
+  // Singular when a file holds one row — the page pluralises, the wait must too.
+  await expect(page.getByText(/observations? committed/)).toBeVisible();
+}
+
+/**
+ * A population figure for the same period, in thousands of people.
+ *
+ * Filed on the memorandum code POP, which never enters an aggregate — the
+ * unit is what makes the per-capita figure right, so the fixture uses
+ * thousands rather than people to exercise the multiplier.
+ */
+export function populationCsv(periodLabel: string): string {
+  return ['txn,isic,period,value', `POP,,${periodLabel},8000`].join('\n');
 }

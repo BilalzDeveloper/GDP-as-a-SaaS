@@ -68,6 +68,21 @@ async function load(claims: RlsClaims, runId: string) {
                 ci.sort_order nulls first, cr.measure
     `)) as unknown as ResultRow[];
 
+    // The currency scale the run's figures are stated in. Needed because the
+    // measures do not all share a unit: GDP is in the compilation's currency
+    // scale (usually millions), per-capita GDP in units of that currency,
+    // population in people, growth in per cent. Exporting them all with a
+    // blank UNIT_MEASURE would leave a consumer to guess.
+    const units = (await tx.execute(sql`
+      select distinct ts.unit_code
+        from observation o
+        join time_series ts on ts.id = o.series_id
+        join unit u on u.code = ts.unit_code
+       where o.vintage_id = (select input_vintage_id from compilation_run
+                              where id = ${runId}::uuid)
+         and u.unit_type = 'currency'
+    `)) as unknown as { unit_code: string }[];
+
     const sources = (await tx.execute(sql`
       select distinct d.original_filename, d.sha256
         from observation o
@@ -77,8 +92,36 @@ async function load(claims: RlsClaims, runId: string) {
        order by d.original_filename
     `)) as unknown as { original_filename: string; sha256: string }[];
 
-    return { meta: meta[0], results: [...results], sources: [...sources] };
+    return {
+      meta: meta[0],
+      results: [...results],
+      sources: [...sources],
+      // Only when the run is unambiguously on one scale; a mixed vintage is
+      // already reported as a warning by the compilation (see
+      // src/compile/derived.ts) and must not be papered over here.
+      currencyUnit: units.length === 1 ? units[0].unit_code : null,
+    };
   });
+}
+
+/**
+ * The unit a measure is stated in.
+ *
+ * Most results carry the compilation's currency scale. Three do not, and
+ * saying so is the difference between a usable extract and a misleading one:
+ * per-capita GDP is in UNITS of the currency rather than the millions the
+ * accounts use, population is a count of people, and a growth rate is a
+ * percentage.
+ */
+function unitFor(measure: string, currencyUnit: string | null): string {
+  if (measure === 'population') return 'PERSONS';
+  if (measure.startsWith('gdp_growth')) return 'PERCENT';
+  if (measure === 'gdp_per_capita') return 'NC_UNITS';
+  if (measure.startsWith('statistical_discrepancy')) return currencyUnit ?? '';
+  if (measure === 'chain_index' || measure === 'volume_growth_percent') {
+    return measure === 'chain_index' ? 'INDEX' : 'PERCENT';
+  }
+  return currencyUnit ?? '';
 }
 
 /** The effective embargo: whichever of the run's or the vintage's applies. */
@@ -97,7 +140,7 @@ export async function exportSdmxCsv(
 ): Promise<{ filename: string; body: string }> {
   const data = await load(claims, runId);
   if (!data) throw new ExportError('No such compilation run.');
-  const { meta, results } = data;
+  const { meta, results, currencyUnit } = data;
 
   const observations: SdmxObservation[] = results.map((r) => ({
     timePeriod: r.period_label,
@@ -105,7 +148,7 @@ export async function exportSdmxCsv(
     activity: r.activity_code ?? '',
     priceBasis: r.price_basis,
     benchmarked: r.benchmarked,
-    unit: r.unit_code ?? '',
+    unit: r.unit_code ?? unitFor(r.measure, currencyUnit),
     measure: r.measure,
     value: r.value === null ? null : Number(r.value),
   }));
@@ -157,6 +200,7 @@ export async function exportExcel(
     periodLabel: r.period_label,
     approach: r.approach,
     measure: r.measure,
+    unit: unitFor(r.measure, data.currencyUnit),
     activityCode: r.activity_code,
     activityName: r.activity_name,
     priceBasis: r.price_basis,

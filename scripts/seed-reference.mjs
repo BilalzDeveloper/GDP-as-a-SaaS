@@ -109,13 +109,14 @@ async function seedFlatTables() {
     // ref_verified is deliberately not touched on conflict: once a human has
     // checked a reference against the manual, re-seeding must not reset it.
     await sql`insert into transaction_code
-                (code, name, sna2008_ref, description, sort_order)
+                (code, name, sna2008_ref, description, sort_order, kind)
               values (${t.code}, ${t.name}, ${t.sna2008_ref},
-                      ${t.description || null}, ${Number(t.sort_order)})
+                      ${t.description || null}, ${Number(t.sort_order)},
+                      ${t.kind || 'transaction'})
               on conflict (code) do update
                 set name = excluded.name, sna2008_ref = excluded.sna2008_ref,
                     description = excluded.description,
-                    sort_order = excluded.sort_order`;
+                    sort_order = excluded.sort_order, kind = excluded.kind`;
   }
 }
 

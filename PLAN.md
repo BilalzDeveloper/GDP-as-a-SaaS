@@ -707,3 +707,43 @@ requirement decorative. And the page says what the trail is *not*: it records
 the change, not the intent, so a reason of "correcting a keying error" is a
 claim by the person who made it, preserved faithfully without being vouched
 for.
+
+## After the milestones — per-capita GDP and growth
+
+The brief's cross-cutting list asks for "per-capita GDP and growth rates, both
+period-on-period and year-on-year". `gdpPerCapita` had been in the engine and
+tested since milestone 3, and nothing called it: there was nowhere to record a
+population figure.
+
+Population now arrives through the ordinary intake path, as an observation on
+transaction code `POP` with a count unit (D42). Not a setting on the
+organization — a population figure is a statistic with a period, a source and
+a revision history, and a published per-capita number is only re-computable if
+its denominator is pinned to the same frozen vintage as the GDP above it. Same
+argument as D27, which put deflators through the observation model.
+
+`transaction_code` gained a `kind`, because population is not a transaction:
+SNA 2008 treats population and labour inputs as memorandum items presented
+alongside the accounts, not as flows within them. The distinction is
+load-bearing — a memorandum item must never reach an aggregate — and the test
+that GDP is unchanged with `POP` sitting in the same vintage is what keeps it
+true.
+
+**A test caught a real modelling error.** Per-capita compiled in the
+compilation's own scale — millions of currency per head — is around 0.0002,
+and `numeric(20,6)` rounds that away almost entirely, leaving a plausible
+small number rather than an obviously broken one. Per-capita is now stated in
+units of the currency (200 per head, not 0.0002 million per head), which is
+what an office publishes and what the column stores exactly. D43.
+
+That made the results table hold measures in more than one unit, so both
+exporters now state a unit per row instead of leaving `UNIT_MEASURE` blank as
+they had for every measure. A vintage that mixes currency scales gets a
+warning and no per-capita figure — and the warning says the aggregates are the
+larger worry, because adding millions to thousands is wrong before anything is
+divided.
+
+Growth rates moved out of the page and into execution (D44): the quarterly
+panel used to compute them in the browser, so an export and the screen were
+two implementations of one published rate. Year-on-year is written only
+sub-annually, where it differs from period-on-period.

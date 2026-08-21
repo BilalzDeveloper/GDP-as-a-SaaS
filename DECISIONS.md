@@ -662,3 +662,58 @@ the intent — a reason of "correcting a keying error" is a claim by the person
 who made the change, preserved faithfully without being vouched for. Published
 figures are protected by vintage freezing instead, which is a different
 guarantee and worth not conflating.
+
+## D42 — Population is an observation, and a memorandum item
+**Decision:** Population arrives through the ordinary intake path as an
+observation on transaction code `POP`, with a count unit (`PERSONS`,
+`PERSONS_TH`). Migration 0009 adds `transaction_code.kind`, and `POP` is the
+first row marked `memorandum` rather than `transaction`.
+**Why an observation rather than a setting:** a population figure is a
+statistic with a period, a source, a vintage and a revision history. A
+published per-capita figure is re-computable only if the population behind it
+is pinned to the same frozen vintage as the GDP — a number typed into a
+settings field would break that on the first revision, and non-negotiable 1
+would be quietly false for every per-capita figure. Same reasoning as D27,
+which put deflators through the observation model for the same reason.
+**Why the code table needed a `kind`:** a series is keyed by a transaction
+code, and population is not a transaction. SNA 2008 treats population and
+labour inputs as memorandum items presented alongside the accounts (ch.19;
+presentation per ch.20 §20.2), not as flows within them. Filing `POP` in a
+table called `transaction_code` without marking it would make the vocabulary
+quietly wrong, and the distinction is load-bearing: a memorandum item must
+never be swept into a GDP aggregate. The assembler reads named codes only, so
+it could not have been — but the test asserting GDP is unchanged with `POP` in
+the same vintage is what keeps that true.
+
+## D43 — Per-capita GDP is published in units of the currency
+**Decision:** `gdp_per_capita` is the headline GDP restated in units of the
+national currency, divided by population in people. Not in the millions the
+accounts are compiled in.
+**Why:** found by a test. GDP of 1600 (millions) over 8,000,000 people gives
+0.0002 in millions per head, and `numeric(20,6)` rounds that to `0.000217` —
+the precision loss is total, and what survives looks like a plausible small
+number rather than an obviously broken one. In currency units the same figure
+is 200 per head, which is what an office publishes and what the column stores
+exactly.
+**Consequence, and how it is handled:** the results table now holds measures
+in more than one unit. Both exporters therefore state a unit per row rather
+than leaving `UNIT_MEASURE` blank, which they had done for every measure:
+per-capita in `NC_UNITS`, population in `PERSONS`, growth rates in `PERCENT`,
+everything else in the compilation's currency scale.
+**Where the scale comes from:** the distinct currency unit of the run's own
+observations. A vintage mixing currency scales gets a warning and no
+per-capita figure — and the warning says the aggregates are the larger worry,
+because adding millions to thousands is wrong before anything is divided.
+
+## D44 — Growth rates are computed once, and stored
+**Decision:** period-on-period and year-on-year growth are computed during
+execution and written as results, rather than derived in the page that
+displays them.
+**Why:** the quarterly panel previously computed growth in the browser, so an
+exported extract and the screen were two independent implementations of the
+same published rate and could disagree. They are now one. It also means a
+growth rate is covered by the run's pinned method version like every other
+figure.
+**Year-on-year is written only sub-annually.** At annual frequency it is the
+same comparison as period-on-period, and two names for one figure is how a
+publication contradicts itself.

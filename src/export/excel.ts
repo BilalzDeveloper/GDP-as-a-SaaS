@@ -28,6 +28,8 @@ export interface ExcelRow {
   activityCode: string | null;
   activityName: string | null;
   priceBasis: string;
+  /** Unit code — not all measures share one; see src/export/service.ts. */
+  unit: string;
   /** True for a figure reconciled to annual totals. */
   benchmarked: boolean;
   value: number | null;
@@ -74,6 +76,7 @@ export async function toExcelWorkbook(
       { header: 'Activity code', key: 'code', width: 14 },
       { header: 'Activity', key: 'activity', width: 40 },
       { header: 'Benchmarked', key: 'benchmarked', width: 13 },
+      { header: 'Unit', key: 'unit', width: 12 },
       { header: 'Value', key: 'value', width: 18 },
     ];
     sheet.getRow(1).font = { bold: true };
@@ -87,6 +90,8 @@ export async function toExcelWorkbook(
         // Quarterly runs carry the indicator and the reconciled figure for
         // the same cell; without this column they would look like duplicates.
         benchmarked: row.benchmarked ? 'yes' : 'no',
+        // Measures do not all share a unit: read this column before summing.
+        unit: row.unit,
         // Null stays empty: a missing observation is not a zero.
         value: row.value,
       });

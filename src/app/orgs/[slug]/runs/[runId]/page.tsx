@@ -236,18 +236,15 @@ export default async function RunPage({
     value(periodLabel, 'summary', 'headline_gdp', hasBenchmarked) ??
     value(periodLabel, 'summary', 'headline_gdp');
 
-  /* Growth on the published headline. Quarter-on-quarter and, four quarters
-     back, year-on-year — the comparison usually quoted, because it is not
-     disturbed by the seasonal pattern this engine does not remove. */
-  const growth = (i: number, lag: number): number | null => {
-    if (i - lag < 0) return null;
-    const current = headline(periods[i]);
-    const previous = headline(periods[i - lag]);
-    if (current === null || previous === null) return null;
-    const before = Number(previous);
-    if (!(before > 0)) return null;
-    return ((Number(current) - before) / before) * 100;
-  };
+  /* Growth and per-capita are computed by the engine and stored with the run,
+     not recomputed here: an export and a screen must not be able to disagree
+     about a published rate. */
+  const derived = (periodLabel: string, measure: string) =>
+    value(periodLabel, 'summary', measure, hasBenchmarked) ??
+    value(periodLabel, 'summary', measure);
+
+  const pct = (v: string | null) => (v === null ? '—' : Number(v).toFixed(2));
+  const hasPerCapita = periods.some((p) => derived(p, 'gdp_per_capita') !== null);
 
   const hasVolumes = results.some((r) => r.price_basis === 'chain_linked');
   const volumeIndustries = results.filter(
@@ -448,6 +445,71 @@ export default async function RunPage({
               never removed by adjusting an estimate.
             </p>
 
+            {/* Per-capita and growth, whatever the frequency. The brief asks
+                for both; the quarterly panel below adds the year-on-year
+                comparison, which only means something sub-annually. */}
+            <Panel title="Per capita and growth" scroll>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Period</th>
+                    <th className="num">Headline GDP</th>
+                    {hasPerCapita && <th className="num">Population</th>}
+                    {hasPerCapita && <th className="num">GDP per capita</th>}
+                    <th className="num">
+                      {isQuarterly ? 'Q/Q %' : 'Growth %'}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {periods.map((p) => {
+                    const growth = derived(p, 'gdp_growth_percent');
+                    return (
+                      <tr key={p}>
+                        <td className="mono">{p}</td>
+                        <td className="num strong">{fmt(headline(p))}</td>
+                        {hasPerCapita && (
+                          <td className="num">{fmt(derived(p, 'population'))}</td>
+                        )}
+                        {hasPerCapita && (
+                          <td className="num">{fmt(derived(p, 'gdp_per_capita'))}</td>
+                        )}
+                        <td
+                          className={
+                            growth !== null && Number(growth) < 0
+                              ? 'num is-negative'
+                              : 'num'
+                          }
+                        >
+                          {pct(growth)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </Panel>
+            {hasPerCapita ? (
+              <p className="muted">
+                Population is a memorandum item, uploaded with the rest of the
+                source data on transaction code{' '}
+                <span className="mono">POP</span> and frozen with the same
+                vintage — so a published per-capita figure is re-computable from
+                exactly the inputs behind it. It must be the mid-year or
+                period-average <em>resident</em> population: an end-of-period or
+                de jure count against a resident-basis GDP is a common and
+                quietly wrong comparison.
+              </p>
+            ) : (
+              <p className="muted">
+                No population figure in this vintage, so GDP per capita is not
+                shown. Upload it as an observation on transaction code{' '}
+                <span className="mono">POP</span> with a count unit (
+                <span className="mono">PERSONS</span> or{' '}
+                <span className="mono">PERSONS_TH</span>).
+              </p>
+            )}
+
             {isQuarterly && (
               <>
                 <h2>Quarterly path</h2>
@@ -471,7 +533,7 @@ export default async function RunPage({
                       </tr>
                     </thead>
                     <tbody>
-                      {periods.map((p, i) => {
+                      {periods.map((p) => {
                         const indicator = value(p, 'summary', 'headline_gdp');
                         const reconciled = value(p, 'summary', 'headline_gdp', true);
                         const ratio =
@@ -480,10 +542,8 @@ export default async function RunPage({
                           Number(indicator) !== 0
                             ? Number(reconciled) / Number(indicator)
                             : null;
-                        const qoq = growth(i, 1);
-                        const yoy = growth(i, 4);
-                        const pct = (v: number | null) =>
-                          v === null ? '—' : v.toFixed(2);
+                        const qoq = derived(p, 'gdp_growth_percent');
+                        const yoy = derived(p, 'gdp_growth_yoy_percent');
                         return (
                           <tr key={p}>
                             <td className="mono">{p}</td>
@@ -498,14 +558,18 @@ export default async function RunPage({
                             )}
                             <td
                               className={
-                                qoq !== null && qoq < 0 ? 'num is-negative' : 'num'
+                                qoq !== null && Number(qoq) < 0
+                                  ? 'num is-negative'
+                                  : 'num'
                               }
                             >
                               {pct(qoq)}
                             </td>
                             <td
                               className={
-                                yoy !== null && yoy < 0 ? 'num is-negative' : 'num'
+                                yoy !== null && Number(yoy) < 0
+                                  ? 'num is-negative'
+                                  : 'num'
                               }
                             >
                               {pct(yoy)}

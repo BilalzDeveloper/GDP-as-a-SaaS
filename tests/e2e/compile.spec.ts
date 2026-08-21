@@ -15,6 +15,7 @@ import {
   commitInto,
   createOrganization,
   definePeriods,
+  populationCsv,
   runId,
   signIn,
   signOut,
@@ -32,6 +33,8 @@ const YEAR = 2023;
 const RUN_NAME = 'Annual estimates, first release';
 
 let page: Page;
+/** Set once the run exists, so later tests can come back to it. */
+let runUrl: string;
 
 test.beforeAll(async ({ browser }) => {
   page = await browser.newPage();
@@ -85,6 +88,15 @@ test('staged rows commit into a vintage', async () => {
   await expect(page.getByText(/13 observations committed/)).toBeVisible();
 });
 
+test('a population figure uploads as a memorandum item', async () => {
+  // Per-capita GDP needs a denominator, and it arrives the same way every
+  // other figure does: as an observation, in the same vintage, frozen with it.
+  await uploadCsv(page, slug, 'Population', 'population.csv', populationCsv(String(YEAR)));
+  await applyStandardMapping(page, 'PERSONS_TH');
+  await commitInto(page, 'first estimate');
+  await expect(page.getByText(/1 observation committed/)).toBeVisible();
+});
+
 test('a run executes and reports GDP by all three approaches', async () => {
   await page.goto(`/orgs/${slug}/runs`);
   await page.locator('input[name="name"]').fill(RUN_NAME);
@@ -98,6 +110,7 @@ test('a run executes and reports GDP by all three approaches', async () => {
   await page.getByRole('button', { name: 'Create run' }).click();
 
   await expect(page.getByRole('heading', { name: RUN_NAME })).toBeVisible();
+  runUrl = page.url();
   await page.getByRole('button', { name: 'Execute', exact: true }).click();
 
   // Production 1600, income 1600, headline 1600 — the fixture is consistent,
@@ -280,4 +293,19 @@ test('a viewer cannot alter the trail', async () => {
   // direct SQL. What matters here is that the interface offers no way in.
   await expect(page.getByRole('button', { name: /delete|edit|remove/i })).toHaveCount(0);
   await expect(page.getByText('append-only in the database')).toBeVisible();
+});
+
+test('GDP per capita is published in units of the currency', async () => {
+  // 1600 millions of national currency over 8,000,000 people = 200 per head.
+  // Compiled in millions per head it would be 0.0002 and would round away —
+  // the point of stating the unit rather than inheriting the accounts'.
+  await page.goto(runUrl);
+  const panel = page.locator('.panel', { hasText: 'Per capita and growth' });
+  await expect(panel.getByRole('row', { name: new RegExp(`^${YEAR}`) })).toContainText(
+    '8,000,000',
+  );
+  await expect(panel.getByRole('row', { name: new RegExp(`^${YEAR}`) })).toContainText(
+    '200',
+  );
+  await expect(page.getByText('memorandum item')).toBeVisible();
 });

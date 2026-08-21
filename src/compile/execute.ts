@@ -10,6 +10,7 @@ import { withRls, type RlsClaims, type Tx } from '@/db/rls';
 import { compileGdp, ENGINE_VERSION, type BalancingAnchor } from '@/engine';
 import { assembleRun, type ObservationRow } from './assemble';
 import { benchmarkRun, BenchmarkingError, variantFor } from './benchmark';
+import { computeDerived } from './derived';
 import { MEASURE } from './measures';
 import { computeVolumes, VolumeError } from './volumes';
 
@@ -94,6 +95,8 @@ export interface ExecutionSummary {
     maxResidualPercent: number;
     referencePeriodLabel: string;
   } | null;
+  /** Periods that got a per-capita figure, and periods that got a growth rate. */
+  derived: { perCapitaPeriods: number; growthPeriods: number };
   /** Null when the run is annual, or no annual benchmark was chosen. */
   benchmarking: {
     variant: string;
@@ -398,6 +401,25 @@ export async function executeRun(
           );
         }
 
+        // Per-capita and growth, last: they read the headline figures, and on a
+        // benchmarked run they must read the benchmarked ones, so this has to
+        // come after benchmarking rather than inside the period loop.
+        const derived = { perCapitaPeriods: 0, growthPeriods: 0 };
+        for (const onBenchmarked of benchmarking ? [false, true] : [false]) {
+          const summary = await computeDerived(
+            tx, orgId, runId, run.input_vintage_id, run.frequency, onBenchmarked,
+          );
+          // Diagnostics are reported once, against the published figures.
+          const isPublished = onBenchmarked || !benchmarking;
+          if (isPublished) {
+            derived.perCapitaPeriods = summary.perCapitaPeriods;
+            derived.growthPeriods = summary.growthPeriods;
+            for (const d of summary.diagnostics) {
+              await writeDiagnostic(null, d.severity, d.code, d.message, 'derived measures');
+            }
+          }
+        }
+
         await tx.execute(sql`
           update compilation_run
              set status = 'computed',
@@ -414,6 +436,7 @@ export async function executeRun(
           problems: problemCount,
           volumes,
           benchmarking,
+          derived,
         };
       },
     );
