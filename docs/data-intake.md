@@ -121,3 +121,41 @@ records — milestone 5's requirement — is already possible.
 Periods are defined per organization because fiscal years differ by country. A
 file whose period labels do not match any defined period will fail validation
 with `unknown_period` on every row, so define periods before the first upload.
+
+## Supplying FISIM and imputed rent
+
+Two production-side adjustments are supplied as ordinary observations, on
+codes this system defines rather than lifts from the manual (D45). They are
+marked `kind = 'adjustment'` in `transaction_code`, and the engine applies
+them rather than summing them into a total.
+
+| Code | Carries an industry? | What it is |
+|---|---|---|
+| `FISIM.P1` | no | Total FISIM produced by financial corporations, already inside their `P.1` |
+| `FISIM.P2` | **yes** | FISIM consumed by that industry as an input |
+| `FISIM.P31` | no | FISIM in household final consumption |
+| `FISIM.P3` | no | FISIM in government final consumption |
+| `FISIM.P6` | no | FISIM supplied to non-residents |
+| `IMPRENT.P1` | **yes** | Imputed output of owner-occupied dwelling services, typically ISIC division 68 |
+| `IMPRENT.P2` | **yes**, the same one | Inputs to that imputed production |
+
+Two rules follow from how the engine uses them, and breaking either produces a
+figure that looks reasonable and is wrong:
+
+- **Do not include FISIM in the `P.2` you upload.** The industry's ordinary
+  intermediate consumption must exclude the FISIM allocated to it; the engine
+  adds that from `FISIM.P2`. Supplying it in both double-counts.
+- **The FISIM allocations must sum to `FISIM.P1`.** A shortfall is reported as
+  `fisim_allocation_mismatch` rather than absorbed.
+
+A half-specified adjustment is refused at assembly, not compiled: a total with
+nothing allocated, an allocation with no total, an intermediate allocation
+with no industry to attach it to, or imputed rent whose output and inputs name
+two different industries. The rest of the account still compiles; the
+adjustment simply is not applied, and the run reports why.
+
+Both settings on the run — the FISIM treatment, and whether the household
+consumption figure already includes imputed rent — are chosen when the run is
+created and pinned into its method version. "Not stated" is offered for the
+second and is its own answer: it produces an informational diagnostic asking
+the compiler to check, rather than being read as "no".

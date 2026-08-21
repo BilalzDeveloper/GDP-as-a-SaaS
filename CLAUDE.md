@@ -108,7 +108,10 @@ Working rules for sessions on this repo:
   validator (D31). Removing any of them needs network access this environment
   does not have. Do not quietly drop the caveats.
 - **`supabase/migrations/*.sql` is the schema source of truth.** Never edit an
-  applied migration; add a new numbered one. Keep `src/db/schema.ts` in sync.
+  applied migration; add a new numbered one. `src/db/schema.ts` is a partial
+  Drizzle mirror — tenancy, audit and reference tables only, not the
+  compilation tables, which are queried with `sql` templates. Keep the tables
+  it does cover in sync; do not assume a table is there.
 - **All tenant queries go through `withRls()`** (`src/db/rls.ts`). No app
   runtime code may open its own connection or use the `service_role` key.
 - **The isolation suite is not optional.** `tests/rls/isolation.test.ts` must
@@ -123,6 +126,11 @@ Working rules for sessions on this repo:
 - **Audited writes need a reason, and the reason is read by people.** Anything
   passed to `withRls(claims, { reason })` shows up on the audit page — name
   what was acted on rather than quoting an id (D41).
+- **Some transaction codes are not transactions.** `transaction_code.kind`
+  separates `transaction` from `memorandum` (population — never summed into an
+  aggregate) and `adjustment` (`FISIM.*`, `IMPRENT.*` — applied by the engine,
+  and this system's own vocabulary rather than codes from the manual, D45).
+  A new code needs its `kind` set deliberately.
 - **The engine stays pure.** `src/engine/` imports nothing outside itself —
   no database, no npm dependency, no I/O. `tests/engine/purity.test.ts`
   enforces it. Every function cites the SNA 2008 paragraph or standard

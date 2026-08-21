@@ -315,8 +315,18 @@ describe('the reference vocabulary', () => {
   });
 
   it('leaves every SNA flow a transaction', async () => {
+    // The point is not the size of the list but that nothing carrying an SNA
+    // transaction code (P.*, D.*, B.*) has been quietly reclassified: those
+    // are the codes the assembler sums into aggregates.
     const rows = await admin`
-      select code from transaction_code where kind <> 'transaction' order by code`;
-    expect(rows.map((r) => r.code)).toEqual(['POP']);
+      select code, kind from transaction_code where kind <> 'transaction'`;
+    const misfiled = rows.filter((r) => /^[PDB]\.[0-9]/.test(r.code as string));
+    expect(misfiled).toEqual([]);
+
+    // And every non-transaction is one of the two kinds that exist, each
+    // introduced by a migration that explains why (D42, D45).
+    for (const row of rows) {
+      expect(['memorandum', 'adjustment']).toContain(row.kind);
+    }
   });
 });

@@ -747,3 +747,39 @@ Growth rates moved out of the page and into execution (D44): the quarterly
 panel used to compute them in the browser, so an export and the screen were
 two implementations of one published rate. Year-on-year is written only
 sub-annually, where it differs from period-on-period.
+
+## After the milestones — FISIM and imputed rent get a way in
+
+The brief's production approach ends with "Handle FISIM allocation, and
+imputed rent for owner-occupied dwellings". The engine has handled both since
+milestone 3: `applyFisim` and `applyImputedRent`, with the allocation check
+and the imputed-rent consistency diagnostic, tested there. What was missing
+was any way to supply them. The assembler never populated `FisimInput` or
+`ImputedRentInput`, so nothing a compiler could upload reached that code —
+the same shape of gap the last three passes found in reference periods, the
+audit trail and per-capita.
+
+Seven `transaction_code` rows close it (migration 0010): `FISIM.P1`,
+`FISIM.P2` carrying its industry, `FISIM.P31`, `FISIM.P3`, `FISIM.P6`, and
+`IMPRENT.P1` / `IMPRENT.P2`. They are marked `kind = 'adjustment'` and their
+`sna2008_ref` says "this system's code", because SNA 2008 describes both
+adjustments without assigning either a transaction code of the kind `P.1` or
+`D.21` are. Inventing one and presenting it as the manual's would be the same
+failure as an unverified seed labelled official. D45.
+
+Two settings on the run — the FISIM treatment, and whether household
+consumption already includes imputed rent — are chosen at creation and pinned
+into the method version, because changing either changes published figures.
+The second is a select with a "not stated" option rather than a checkbox: an
+unticked box and an unanswered question submit identically, and they are not
+the same statement about the data.
+
+**Most of the new tests are refusals.** A FISIM total with nothing allocated,
+an allocation with no total, an allocation with no industry to attach it to,
+imputed rent split across two industries — each yields a problem and no
+adjustment rather than a figure computed from a statement the compiler never
+made. That is the failure mode that matters: a wrong number here looks
+entirely reasonable on the page. The browser suite walks the whole path on a
+fixture whose income side was sourced to match the adjustment, so a defect
+anywhere in it shows up as a non-zero discrepancy rather than as a figure that
+merely looks off.

@@ -117,6 +117,11 @@ export const transactionCode = pgTable('transaction_code', {
   refVerified: boolean('ref_verified').notNull().default(false),
   description: text('description'),
   sortOrder: integer('sort_order').notNull().default(0),
+  // 'transaction' | 'memorandum' | 'adjustment' — see migration 0010. Only
+  // transactions may be summed into an aggregate; memoranda (population) sit
+  // beside the accounts and adjustments (FISIM, imputed rent) are applied by
+  // the engine.
+  kind: text('kind').notNull().default('transaction'),
 });
 
 export const classification = pgTable('classification', {

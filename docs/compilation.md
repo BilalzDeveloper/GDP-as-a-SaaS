@@ -17,7 +17,8 @@ vintage of observations → assemble → engine → results + diagnostics
 - **Its input vintage**, fixed at creation. The run reads that vintage's
   observations and nothing else.
 - **Its method version**, fixed at execution: engine semver, git SHA where
-  available, and the full config (balancing anchor, discrepancy threshold).
+  available, and the full config (balancing anchor, discrepancy threshold,
+  FISIM treatment, whether expenditure includes imputed rent).
 
 Those two plus the stored observations are what makes a published figure
 re-computable (non-negotiable 1). `method_version` rows are immutable — a
@@ -45,6 +46,10 @@ refuses to do:
 - **Mixed units are flagged**, never summed.
 - **Absent D.21 withholds production GDP** — value added at basic prices
   cannot become GDP at market prices without it.
+- **A half-specified adjustment is withheld.** FISIM with a total but nothing
+  allocated, or allocations with no total; imputed rent whose output and
+  inputs name two different industries. See `docs/data-intake.md` for the
+  codes and the rules that govern them.
 
 Genuinely optional components are the exception and are treated as zero with
 a diagnostic: NPISH consumption (several countries fold it into households),

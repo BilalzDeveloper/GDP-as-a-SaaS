@@ -384,6 +384,8 @@ RUNS = org_shell('runs') + '''
     <label>Frequency<select><option>annual</option></select></label>
     <label>Volume reference period (optional)<input value="2021" readonly></label>
     <label>Index formula<select><option>Laspeyres</option></select></label>
+    <label>FISIM treatment<select><option>allocated — SNA 2008: producers&#39; share is intermediate</option></select></label>
+    <label>Household consumption includes imputed rent<select><option>yes — it is already in P.31</option></select></label>
     <button type="button">Create run</button>
   </form>
 </main>'''
@@ -396,6 +398,8 @@ RUN = org_shell('runs') + '''
   <ul class="meta">
     <li><span class="k">Vintage</span><span class="v">2024 revised</span></li>
     <li><span class="k">Anchor</span><span class="v">production</span></li>
+    <li><span class="k">FISIM</span><span class="v">allocated</span></li>
+    <li><span class="k">Imputed rent in P.31</span><span class="v">yes</span></li>
     <li><span class="k">Engine</span><span class="v mono">0.1.0</span></li>
     <li><span class="k">Executed</span><span class="v mono">2026-08-11 16:40</span></li>
   </ul>

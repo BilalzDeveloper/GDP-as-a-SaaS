@@ -717,3 +717,40 @@ figure.
 **Year-on-year is written only sub-annually.** At annual frequency it is the
 same comparison as period-on-period, and two names for one figure is how a
 publication contradicts itself.
+
+## D45 — FISIM and imputed rent are supplied on this system's own codes
+**Decision:** seven new `transaction_code` rows carry the two production-side
+adjustments the brief asks for — `FISIM.P1` (total output), `FISIM.P2`
+(allocated to intermediate consumption, carrying its industry), `FISIM.P31`,
+`FISIM.P3`, `FISIM.P6`, and `IMPRENT.P1` / `IMPRENT.P2`. They are marked
+`kind = 'adjustment'` and their `sna2008_ref` says "this system's code".
+**Why they cannot be ordinary P.1 and P.2 rows:** the engine needs both
+separately from the figures they adjust. It must check that the FISIM
+allocation exhausts financial corporations' FISIM output, and add the
+intermediate portion to the *right* industries; handed FISIM-inclusive
+intermediate consumption it would double-count. Imputed rent must be visible
+as imputed, because recording it as output without the matching household
+consumption is the classic compilation error, and the engine diagnoses it.
+**Why they are honestly labelled:** SNA 2008 describes both adjustments (FISIM
+in ch.6 and ch.17, owner-occupied dwelling services in ch.6) without assigning
+either a single transaction code of the kind `P.1` or `D.21` are. ESA's
+transmission programme carries FISIM as a component of output rather than as a
+transaction in its own right. Presenting an invented code as if it came from
+the manual would be the same failure as an unverified classification seed
+labelled as the official file (D12).
+**The two run settings are method, not data.** `fisim_treatment` (`allocated`,
+the SNA 2008 treatment, or `unallocated`, the SNA 1993 convention still
+encountered) and `expenditure_includes_imputed_rent` both go into the run's
+pinned `method_version` config: changing either changes published figures, and
+must be visibly a different method rather than a silent revision.
+**`expenditure_includes_imputed_rent` is deliberately tri-state.** NULL means
+the compiler has not said, which is a different fact from "no" and gets its
+own, milder diagnostic. It is a select rather than a checkbox for that reason —
+an unticked box and an unanswered question submit identically. The engine
+never adjusts household consumption on the caller's behalf either way.
+**The assembler refuses a half-specified adjustment.** A FISIM total with no
+allocation, an allocation with no total, an intermediate allocation with no
+industry, or imputed rent split across two industries all produce a problem
+and no adjustment, rather than a figure computed from a statement the compiler
+never made. Those refusals are most of `tests/compile/adjustments.test.ts`,
+because a plausible-looking wrong number is the failure mode that matters here.

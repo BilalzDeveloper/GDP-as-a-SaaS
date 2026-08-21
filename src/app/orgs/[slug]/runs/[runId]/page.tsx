@@ -76,6 +76,7 @@ export default async function RunPage({
              r.volume_index_formula, r.published_at, r.embargo_until,
              r.created_by, r.frequency::text as frequency,
              r.benchmark_source_run_id, r.benchmark_method,
+             r.fisim_treatment, r.expenditure_includes_imputed_rent,
              b.name as benchmark_name,
              v.name as vintage_name, v.frozen_at,
              v.published as vintage_published, v.embargo_until as vintage_embargo,
@@ -93,6 +94,8 @@ export default async function RunPage({
       published_at: string | null; embargo_until: string | null;
       created_by: string | null; frequency: string;
       benchmark_source_run_id: string | null; benchmark_method: string;
+      fisim_treatment: string;
+      expenditure_includes_imputed_rent: boolean | null;
       benchmark_name: string | null;
       vintage_name: string; frozen_at: string | null;
       vintage_published: boolean; vintage_embargo: string | null;
@@ -164,6 +167,22 @@ export default async function RunPage({
       decision: string; note: string; decided_at: string; email: string | null;
     }[];
 
+    // Whether the adjustment settings are worth showing at all: a run whose
+    // vintage carries no FISIM or imputed-rent rows is not compiled under a
+    // FISIM treatment in any meaningful sense, and a header row saying
+    // "allocated" would suggest an adjustment that never happened.
+    const adjustments = (await tx.execute(sql`
+      select tc.kind, count(*)::int as n
+        from observation o
+        join time_series ts on ts.id = o.series_id
+        join transaction_code tc on tc.code = ts.transaction_code
+       where o.org_id = ${orgs[0].id}
+         and o.vintage_id = (select input_vintage_id from compilation_run
+                              where id = ${runId}::uuid)
+         and tc.kind = 'adjustment'
+       group by tc.kind
+    `)) as unknown as { kind: string; n: number }[];
+
     const membership = (await tx.execute(sql`
       select role::text as role from membership
        where org_id = ${orgs[0].id} and user_id = ${claims.sub}::uuid
@@ -177,6 +196,7 @@ export default async function RunPage({
       constraints: [...constraints],
       sources,
       reviews: [...reviews],
+      hasAdjustments: (adjustments[0]?.n ?? 0) > 0,
       role: membership[0]?.role ?? 'viewer',
     };
   });
@@ -300,6 +320,24 @@ export default async function RunPage({
                   : 'none'}
               </span>
             </li>
+          )}
+          {data.hasAdjustments && (
+            <>
+              <li>
+                <span className="k">FISIM</span>
+                <span className="v">{run.fisim_treatment}</span>
+              </li>
+              <li>
+                <span className="k">Imputed rent in P.31</span>
+                <span className="v">
+                  {run.expenditure_includes_imputed_rent === null
+                    ? 'not stated'
+                    : run.expenditure_includes_imputed_rent
+                      ? 'yes'
+                      : 'no'}
+                </span>
+              </li>
+            </>
           )}
           {run.engine_semver && (
             <li>

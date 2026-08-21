@@ -162,3 +162,44 @@ export async function commitInto(page: Page, vintageName: string): Promise<void>
 export function populationCsv(periodLabel: string): string {
   return ['txn,isic,period,value', `POP,,${periodLabel},8000`].join('\n');
 }
+
+/**
+ * The same economy with FISIM recorded explicitly, and still internally
+ * consistent.
+ *
+ * Financial corporations produce 100 of FISIM, of which industry C consumes
+ * 60 as an input and households and non-residents take 40 as final use. Under
+ * the SNA 2008 allocated treatment the 60 is intermediate consumption, so
+ * value added falls by it:
+ *
+ *   Σ GVA  = 1350 − 60                  = 1290
+ *   GDP    = 1290 + D.21 320 − D.31 70  = 1540
+ *
+ * Operating surplus is 60 lower than in `annualCsv` for the same reason — the
+ * industries consuming FISIM earn less on it — so the income approach gives
+ * 1540 too and the discrepancy stays zero. A defect anywhere in the
+ * adjustment path shows up as a non-zero discrepancy rather than as a figure
+ * that merely looks wrong.
+ */
+export function adjustmentsCsv(periodLabel: string): string {
+  return [
+    'txn,isic,period,value',
+    `P.1,A,${periodLabel},500`,
+    `P.2,A,${periodLabel},200`,
+    `P.1,C,${periodLabel},2000`,
+    `P.2,C,${periodLabel},1200`,
+    `P.1,F,${periodLabel},700`,
+    `P.2,F,${periodLabel},450`,
+    `D.21,,${periodLabel},320`,
+    `D.31,,${periodLabel},70`,
+    `D.1,,${periodLabel},800`,
+    `B.2g,,${periodLabel},290`,
+    `B.3g,,${periodLabel},100`,
+    `D.2,,${periodLabel},420`,
+    `D.3,,${periodLabel},70`,
+    `FISIM.P1,,${periodLabel},100`,
+    `FISIM.P2,C,${periodLabel},60`,
+    `FISIM.P31,,${periodLabel},30`,
+    `FISIM.P6,,${periodLabel},10`,
+  ].join('\n');
+}

@@ -122,7 +122,8 @@ export async function executeRun(
     const rows = (await tx.execute(sql`
       select id, name, input_vintage_id, anchor_approach, status, frequency::text,
              volume_reference_period_label, benchmark_source_run_id,
-             benchmark_method
+             benchmark_method, fisim_treatment,
+             expenditure_includes_imputed_rent
         from compilation_run where id = ${runId}::uuid
     `)) as unknown as {
       id: string;
@@ -134,6 +135,8 @@ export async function executeRun(
       volume_reference_period_label: string | null;
       benchmark_source_run_id: string | null;
       benchmark_method: string;
+      fisim_treatment: 'allocated' | 'unallocated';
+      expenditure_includes_imputed_rent: boolean | null;
     }[];
     return rows[0];
   });
@@ -168,6 +171,8 @@ export async function executeRun(
           frequency: run.frequency,
           benchmarkMethod: run.benchmark_source_run_id ? run.benchmark_method : 'none',
           benchmarkSourceRunId: run.benchmark_source_run_id,
+          fisimTreatment: run.fisim_treatment,
+          expenditureIncludesImputedRent: run.expenditure_includes_imputed_rent,
         };
         const methodVersionId = await pinMethodVersion(tx, config);
 
@@ -176,7 +181,11 @@ export async function executeRun(
         await tx.execute(sql`delete from compilation_result where run_id = ${runId}::uuid`);
         await tx.execute(sql`delete from compilation_diagnostic where run_id = ${runId}::uuid`);
 
-        const periods = assembleRun(observations);
+        const periods = assembleRun(observations, {
+          fisimTreatment: run.fisim_treatment,
+          expenditureIncludesImputedRent:
+            run.expenditure_includes_imputed_rent ?? undefined,
+        });
         let resultsWritten = 0;
         let diagnosticCount = 0;
         let problemCount = 0;

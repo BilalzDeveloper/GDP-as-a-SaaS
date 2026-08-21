@@ -26,3 +26,10 @@ P.53,Acquisitions less disposals of valuables,SNA 2008 ch.10,240,Net acquisition
 P.6,Exports of goods and services,SNA 2008 ch.14,250,Sales; barter or transfers of goods and services from residents to non-residents,transaction
 P.7,Imports of goods and services,SNA 2008 ch.14,260,Purchases; barter or transfers of goods and services from non-residents to residents,transaction
 POP,Total population,SNA 2008 ch.19; presentation per ch.20 §20.2,900,Mid-year (or period-average) resident population. A memorandum item; never summed into an aggregate; used only as the denominator of per-capita measures,memorandum
+FISIM.P1,"FISIM output, total",SNA 2008 ch.6 and ch.17 (this system’s code),910,Total FISIM produced by financial corporations; already included in their P.1. The allocations below must sum to this figure.,adjustment
+FISIM.P2,FISIM allocated to intermediate consumption,SNA 2008 ch.6 and ch.17 (this system’s code),911,FISIM consumed by a producing industry; carries that industry. GDP-neutral.,adjustment
+FISIM.P31,FISIM in household final consumption,SNA 2008 ch.6 and ch.17 (this system’s code),912,FISIM consumed by households as final consumers. Final use; raises GDP.,adjustment
+FISIM.P3,FISIM in government final consumption,SNA 2008 ch.6 and ch.17 (this system’s code),913,FISIM consumed by general government. Final use; raises GDP.,adjustment
+FISIM.P6,FISIM exported,SNA 2008 ch.6 and ch.17 (this system’s code),914,FISIM supplied to non-residents. Final use; raises GDP.,adjustment
+IMPRENT.P1,Imputed output of owner-occupied dwelling services,SNA 2008 ch.6 (this system’s code),920,Housing services produced and consumed by owner-occupiers; carries the industry that records them.,adjustment
+IMPRENT.P2,Intermediate consumption of owner-occupied dwelling services,SNA 2008 ch.6 (this system’s code),921,Inputs to the imputed production above; must carry the same industry as IMPRENT.P1.,adjustment

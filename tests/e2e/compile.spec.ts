@@ -10,6 +10,7 @@
 // Serial by design: these are stages of one story, not independent cases.
 import { expect, test, type Page } from '@playwright/test';
 import {
+  adjustmentsCsv,
   annualCsv,
   applyStandardMapping,
   commitInto,
@@ -31,6 +32,7 @@ const reviewerEmail = `e2e-reviewer-${id}@nso.test`;
 const slug = `e2e-${id}`;
 const YEAR = 2023;
 const RUN_NAME = 'Annual estimates, first release';
+const FISIM_RUN_NAME = 'Annual estimates with FISIM';
 
 let page: Page;
 /** Set once the run exists, so later tests can come back to it. */
@@ -308,4 +310,49 @@ test('GDP per capita is published in units of the currency', async () => {
     '200',
   );
   await expect(page.getByText('memorandum item')).toBeVisible();
+});
+
+test('FISIM supplied as data reaches the engine and moves GDP', async () => {
+  // The last stretch of the brief's production approach: "Handle FISIM
+  // allocation, and imputed rent for owner-occupied dwellings." The engine has
+  // done both since milestone 3, but until the FISIM.* codes existed there was
+  // no way for a compiler to supply either, so no real compilation could reach
+  // that code. This walks the whole path in the browser.
+  await uploadCsv(page, slug, 'Accounts with FISIM', 'fisim.csv', adjustmentsCsv(String(YEAR)));
+  await applyStandardMapping(page);
+  await commitInto(page, 'with FISIM');
+
+  await page.goto(`/orgs/${slug}/runs`);
+  await page.locator('input[name="name"]').fill(FISIM_RUN_NAME);
+  const vintage = page
+    .locator('select[name="vintageId"] option')
+    .filter({ hasText: 'with FISIM' })
+    .first();
+  await page
+    .locator('select[name="vintageId"]')
+    .selectOption(await vintage.getAttribute('value'));
+  await page.locator('select[name="fisimTreatment"]').selectOption('allocated');
+  await page.getByRole('button', { name: 'Create run' }).click();
+
+  await expect(page.getByRole('heading', { name: FISIM_RUN_NAME })).toBeVisible();
+  await page.getByRole('button', { name: 'Execute', exact: true }).click();
+
+  // 1600 without the adjustment, 1540 with it: the 60 consumed by industry C
+  // became intermediate consumption there. The 40 taken as final use stayed
+  // in GDP, which is the whole point of allocating FISIM rather than writing
+  // all of it off.
+  const gdpRow = page
+    .getByRole('table')
+    .first()
+    .getByRole('row', { name: new RegExp(`^${YEAR}`) });
+  await expect(gdpRow).toContainText('1,540');
+
+  // The income side was sourced to match, so a correct adjustment leaves the
+  // two approaches agreeing. Any slip in the path shows up here first.
+  const discrepancy = page.locator('.panel', { hasText: 'Statistical discrepancy' });
+  await expect(discrepancy).toContainText('0');
+
+  // And the run says what it was compiled under, because a different
+  // treatment is a different figure.
+  await expect(page.getByText('allocated')).toBeVisible();
 });

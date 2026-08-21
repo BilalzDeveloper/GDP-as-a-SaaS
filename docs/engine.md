@@ -108,7 +108,9 @@ cannot infer the embedded tax and subsidy amounts.
 **FISIM.** `IndustryInput.intermediateConsumption` must **exclude** FISIM
 allocated to that industry; the engine applies the allocation from the
 `fisim` input. Supplying FISIM-inclusive intermediate consumption alongside a
-`fisim` input double-counts it.
+`fisim` input double-counts it. A compilation supplies both this and
+`imputedRent` on the `FISIM.*` and `IMPRENT.*` codes — see
+`docs/data-intake.md` and D45.
 
 **Units.** The engine never converts units or currencies. Every figure in one
 compilation must be in the same unit — see the `unit` registry, where the

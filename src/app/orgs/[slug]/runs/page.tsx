@@ -249,6 +249,25 @@ export default async function RunsPage({
                   <option value="fisher">Fisher</option>
                 </select>
               </label>
+              <label>
+                FISIM treatment
+                <select name="fisimTreatment" defaultValue="allocated">
+                  <option value="allocated">
+                    allocated — SNA 2008: producers&apos; share is intermediate
+                  </option>
+                  <option value="unallocated">
+                    unallocated — SNA 1993: all of it intermediate
+                  </option>
+                </select>
+              </label>
+              <label>
+                Household consumption includes imputed rent
+                <select name="rentInExpenditure" defaultValue="">
+                  <option value="">— not stated —</option>
+                  <option value="yes">yes — it is already in P.31</option>
+                  <option value="no">no — it is excluded</option>
+                </select>
+              </label>
               <button type="submit">Create run</button>
             </form>
             <p className="muted">
@@ -257,6 +276,17 @@ export default async function RunsPage({
               to agree. Naming a volume reference period chain-links the results
               to that period&apos;s price level, and needs deflators in the
               vintage.
+            </p>
+            <p className="muted">
+              FISIM and imputed rent are supplied on the FISIM.* and IMPRENT.*
+              codes and applied by the engine, not summed into a total. Under
+              the allocated treatment the part producers consume is
+              intermediate consumption of their own industries and leaves GDP
+              unchanged; what households, government and non-residents consume
+              is final use and raises it. Whether household consumption
+              already includes imputed rent is a statement about the source
+              data that only the compiler can make, so leaving it unstated is
+              reported rather than assumed either way.
             </p>
             <p className="muted">
               A quarterly run benchmarked to an annual one has its quarters

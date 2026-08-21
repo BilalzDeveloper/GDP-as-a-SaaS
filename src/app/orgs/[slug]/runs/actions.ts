@@ -61,6 +61,11 @@ export async function createRun(formData: FormData) {
   const volumeFormula = String(formData.get('volumeFormula') ?? '').trim();
   const benchmarkRunId = String(formData.get('benchmarkRunId') ?? '').trim();
   const benchmarkMethod = String(formData.get('benchmarkMethod') ?? 'denton_proportional');
+  const fisimTreatment = String(formData.get('fisimTreatment') ?? 'allocated');
+  // Three states, so this is a select rather than a checkbox: an unticked box
+  // and an unanswered question submit identically, and they are not the same
+  // statement about the data (see migration 0010).
+  const rentInExpenditure = String(formData.get('rentInExpenditure') ?? '');
   if (!name) fail(path, 'Name the run.');
   if (!vintageId) fail(path, 'Choose the vintage this run reads.');
   if (volumeFormula && !['laspeyres', 'paasche', 'fisher'].includes(volumeFormula)) {
@@ -68,6 +73,12 @@ export async function createRun(formData: FormData) {
   }
   if (!['denton_proportional', 'denton_additive', 'none'].includes(benchmarkMethod)) {
     fail(path, 'Unknown benchmarking method.');
+  }
+  if (!['allocated', 'unallocated'].includes(fisimTreatment)) {
+    fail(path, 'Unknown FISIM treatment.');
+  }
+  if (!['', 'yes', 'no'].includes(rentInExpenditure)) {
+    fail(path, 'Answer whether expenditure includes imputed rent, or leave it unstated.');
   }
   // Benchmarking reconciles a sub-annual series to annual totals, so it is
   // meaningless on an annual run. Silently ignoring the field would leave a
@@ -85,11 +96,14 @@ export async function createRun(formData: FormData) {
           insert into compilation_run
             (org_id, name, frequency, input_vintage_id, anchor_approach,
              volume_reference_period_label, volume_index_formula,
-             benchmark_source_run_id, benchmark_method, created_by)
+             benchmark_source_run_id, benchmark_method,
+             fisim_treatment, expenditure_includes_imputed_rent, created_by)
           values (${org.id}::uuid, ${name}, ${frequency}::period_frequency,
                   ${vintageId}::uuid, ${anchor},
                   ${volumeReference || null}, ${volumeFormula || null},
                   ${benchmarkRunId || null}::uuid, ${benchmarkMethod},
+                  ${fisimTreatment},
+                  ${rentInExpenditure === '' ? null : rentInExpenditure === 'yes'},
                   ${claims.sub}::uuid)
           returning id
         `)) as unknown as { id: string }[];
