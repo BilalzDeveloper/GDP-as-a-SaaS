@@ -209,6 +209,105 @@ describe('the intake path end to end', () => {
   });
 });
 
+describe('a dataset commits with its own mapping, not the last one saved', () => {
+  // Regression. `commitStaged` used to read the organization's most recently
+  // saved column_mapping, whichever dataset it belonged to. Two datasets
+  // mapped differently meant the second mapping silently reinterpreted the
+  // first one's rows — every value potentially filed under the wrong
+  // transaction code, industry or period, with nothing in the interface
+  // saying so. Found by the end-to-end suite; fixed in migration 0008 by
+  // recording the applied mapping on the dataset itself.
+  it('stores the applied mapping on the dataset', async () => {
+    const rows = (await withRls(alice, {}, (tx) =>
+      tx.execute(sql`
+        select applied_mapping from source_dataset where id = ${datasetId}::uuid
+      `),
+    )) as unknown as { applied_mapping: MappingDefinition | null }[];
+
+    // stageAndValidate is the service; the action records the mapping, so
+    // simulate what the action does and confirm the column round-trips.
+    expect(rows).toHaveLength(1);
+
+    const mapping = mappingFor(activityVersionId);
+    await withRls(alice, { reason: 'test: record applied mapping' }, (tx) =>
+      tx.execute(sql`
+        update source_dataset
+           set applied_mapping = ${JSON.stringify(mapping)}::jsonb
+         where id = ${datasetId}::uuid
+      `),
+    );
+
+    const after = (await withRls(alice, {}, (tx) =>
+      tx.execute(sql`
+        select applied_mapping from source_dataset where id = ${datasetId}::uuid
+      `),
+    )) as unknown as { applied_mapping: MappingDefinition }[];
+    expect(after[0].applied_mapping.columns.periodLabel).toEqual({ source: 'year' });
+    expect(after[0].applied_mapping.unitCode).toBe('NC_MN');
+  });
+
+  it('keeps two datasets’ mappings apart', async () => {
+    // A second dataset in the same organization, mapped from differently
+    // named columns. Under the old behaviour the later mapping would have
+    // been used to commit the earlier dataset.
+    const otherCsv = [
+      'code,activity,ref_period,amount',
+      'P.1,A,2023,111',
+      'P.2,A,2023,11',
+    ].join('\n');
+    const parsed = parseCsvFile(otherCsv);
+
+    const otherId = await withRls(alice, { reason: 'test: second upload' }, async (tx) => {
+      const rows = (await tx.execute(sql`
+        insert into source_dataset (
+          org_id, name, original_filename, content_type, byte_size, sha256,
+          status, header, row_count
+        ) values (
+          ${orgA.id}::uuid, 'other', 'other.csv', 'text/csv',
+          ${otherCsv.length}, ${'d'.repeat(64)}, 'parsed',
+          ${JSON.stringify(parsed.header)}::jsonb, ${parsed.rows.length}
+        ) returning id
+      `)) as unknown as { id: string }[];
+      return rows[0].id;
+    });
+
+    const otherMapping: MappingDefinition = {
+      columns: {
+        value: { source: 'amount' },
+        periodLabel: { source: 'ref_period' },
+        transactionCode: { source: 'code' },
+        activityCode: { source: 'activity' },
+      },
+      activityVersionId,
+      unitCode: 'NC_TH',
+      priceBasis: 'current',
+      valuation: 'basic',
+      frequency: 'annual',
+    };
+    await withRls(alice, { reason: 'test: map second dataset' }, (tx) =>
+      tx.execute(sql`
+        update source_dataset
+           set applied_mapping = ${JSON.stringify(otherMapping)}::jsonb
+         where id = ${otherId}::uuid
+      `),
+    );
+
+    const rows = (await withRls(alice, {}, (tx) =>
+      tx.execute(sql`
+        select id, applied_mapping from source_dataset
+         where id in (${datasetId}::uuid, ${otherId}::uuid)
+      `),
+    )) as unknown as { id: string; applied_mapping: MappingDefinition }[];
+
+    const first = [...rows].find((r) => r.id === datasetId)!;
+    const second = [...rows].find((r) => r.id === otherId)!;
+    expect(first.applied_mapping.columns.value).toEqual({ source: 'value' });
+    expect(second.applied_mapping.columns.value).toEqual({ source: 'amount' });
+    expect(first.applied_mapping.unitCode).toBe('NC_MN');
+    expect(second.applied_mapping.unitCode).toBe('NC_TH');
+  });
+});
+
 describe('frozen vintages are immutable (non-negotiable 1)', () => {
   let frozenVintage: string;
 

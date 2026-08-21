@@ -564,3 +564,65 @@ UUID could attach another tenant's annual run and pull its totals into their
 results. A `BEFORE INSERT OR UPDATE` trigger blocks that, and the isolation
 suite exercises it. Non-negotiable 3 is not something to leave to the
 application layer.
+
+## D38 — End-to-end tests run against a local stand-in for Supabase Auth
+**Decision:** The Playwright suite drives the real Next.js build, the real
+server actions and the real Postgres with every migration and RLS policy. The
+one substituted component is the identity provider: `tests/e2e/auth-stub.mjs`
+speaks enough of the GoTrue HTTP API for `@supabase/ssr` to issue and validate
+a session locally.
+**Why:** `supabase.auth.getUser()` revalidates the JWT against Supabase's
+hosted service on every request — deliberately, and the middleware comment says
+not to remove it. So a browser-level test needs either a live Supabase project
+(which is the deployment still waiting on credentials) or a local stand-in.
+Waiting would have meant the brief's "Playwright for critical user flows" sat
+undone indefinitely, and the flows worth testing — upload, map, validate,
+commit, compile, review, publish, export — are downstream of authentication
+rather than part of it.
+**What this therefore does NOT cover:** password strength policy, rate
+limiting, email delivery, OAuth, MFA. Those belong to Supabase Auth and will
+behave as the project configures them. What it does cover is that the
+application uses an identity correctly once it has one — including that a
+member of one organization cannot reach another's pre-release figures by URL.
+**When the deployment exists:** point `NEXT_PUBLIC_SUPABASE_URL` at the real
+project and the same specs run unchanged against it. The stub is a fixture,
+not an abstraction the application knows about.
+
+## D39 — A dataset commits with the mapping it was staged with
+**Decision:** `source_dataset.applied_mapping` records the column mapping used
+to stage a dataset (migration 0008), and the commit reads it from there.
+`column_mapping` remains what it was: the organization's library of named,
+reusable mappings for recurring extracts.
+**Why:** the commit previously read the organization's most recently saved
+mapping, whichever dataset it belonged to. Mapping dataset A, then mapping
+dataset B differently, then committing A would interpret A's rows with B's
+mapping — values landing under the wrong transaction code, industry or period,
+with nothing in the interface indicating it. It also meant a compiler who left
+the optional "save this mapping as" name blank could stage and validate a file
+and then find Commit refusing for a reason the message did not give.
+**Found by:** the end-to-end suite, walking the intake flow as a compiler does.
+Neither half showed up in the unit tests, because those pass the mapping
+directly to `commitDataset` rather than going through the action that looks it
+up.
+**Also:** the applied mapping is provenance. The file bytes and the mapping
+together are what produced the observations, so reproducing a figure needs
+both (non-negotiable 1) — a reason to store it on the dataset beyond fixing
+the bug.
+
+## D40 — Reference periods are defined in the interface
+**Decision:** A compiler defines an organization's reference periods from the
+Source data page, giving a fiscal year and whether to create the annual
+period, the four quarters, or both. Dates are computed from the organization's
+own `fiscal_year_start_month` by `src/intake/periods.ts`.
+**Why:** there was no way to do this at all. The page warned that no periods
+were defined and offered nothing to fix it, so a newly registered organization
+could not process its first upload without someone running SQL. Every
+milestone had assumed the periods were simply there.
+**Conventions recorded rather than assumed:** quarters are counted from the
+start of the fiscal year, so Q1 of a July-to-June year is July–September —
+which is what an office running a non-calendar year means by "Q1". A January
+start is labelled `2024`; anything else is labelled `FY2024/25`, naming the
+year the period begins in (the Australian and US federal convention). The
+convention that names the year it *ends* in is equally common, so the label is
+stored per period and nothing downstream parses it — an organization that
+publishes the other way can define its periods with the labels it already uses.

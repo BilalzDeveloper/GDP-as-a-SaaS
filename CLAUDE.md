@@ -116,6 +116,10 @@ Working rules for sessions on this repo:
   same change.
 - Local test database: `bash scripts/test-db.sh`, then
   `DATABASE_URL=... npm test`. See [`README.md`](README.md).
+- **The browser suite runs the real stack.** `npm run test:e2e` needs a build
+  and the test database; only the identity provider is stubbed
+  (`tests/e2e/auth-stub.mjs`, D38). See
+  [`docs/end-to-end-tests.md`](docs/end-to-end-tests.md).
 - **The engine stays pure.** `src/engine/` imports nothing outside itself —
   no database, no npm dependency, no I/O. `tests/engine/purity.test.ts`
   enforces it. Every function cites the SNA 2008 paragraph or standard

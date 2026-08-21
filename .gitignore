@@ -16,3 +16,8 @@ coverage/
 # scratch files from debugging sessions
 *.tmp.mts
 *.tmp.mjs
+
+# Playwright output
+test-results/
+playwright-report/
+blob-report/

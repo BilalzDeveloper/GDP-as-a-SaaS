@@ -8,6 +8,7 @@ import { withRls } from '@/db/rls';
 import { getVerifiedClaims } from '@/lib/supabase/server';
 import { parseUpload, ParseError, MAX_UPLOAD_BYTES } from '@/intake/parse';
 import { stageAndValidate, commitDataset, CommitBlockedError } from '@/intake/service';
+import { generatePeriods } from '@/intake/periods';
 import type { MappingDefinition } from '@/intake/types';
 
 function fail(path: string, message: string): never {
@@ -19,12 +20,67 @@ async function orgFor(slug: string) {
   if (!claims) redirect('/sign-in');
   const org = await withRls(claims, {}, async (tx) => {
     const rows = (await tx.execute(
-      sql`select id, slug from organization where slug = ${slug}`,
-    )) as unknown as { id: string; slug: string }[];
+      sql`select id, slug, fiscal_year_start_month from organization where slug = ${slug}`,
+    )) as unknown as {
+      id: string;
+      slug: string;
+      fiscal_year_start_month: number;
+    }[];
     return rows[0];
   });
   if (!org) redirect('/orgs');
   return { claims, org };
+}
+
+/**
+ * Define an organization's reference periods for one fiscal year.
+ *
+ * Periods are per organization because the fiscal-year convention is: the
+ * dates are computed from the organization's own start month, never from a
+ * calendar assumption (see `src/intake/periods.ts`). Re-running for a year
+ * that already exists is a no-op rather than an error — a compiler adding
+ * quarters to a year that already has its annual period should not have to
+ * care whether they did this before.
+ */
+export async function createPeriods(formData: FormData) {
+  const slug = String(formData.get('slug') ?? '');
+  const path = `/orgs/${slug}/data`;
+  const { claims, org } = await orgFor(slug);
+
+  const year = Number(String(formData.get('fiscalYear') ?? '').trim());
+  const cover = String(formData.get('cover') ?? 'both');
+  if (!Number.isInteger(year)) fail(path, 'Give the fiscal year as a whole number.');
+
+  let periods;
+  try {
+    periods = generatePeriods(year, org.fiscal_year_start_month, {
+      annual: cover !== 'quarterly',
+      quarterly: cover !== 'annual',
+    });
+  } catch (e) {
+    fail(path, e instanceof RangeError ? e.message : 'That fiscal year could not be used.');
+  }
+  if (periods.length === 0) fail(path, 'Choose at least one frequency.');
+
+  await withRls(
+    claims,
+    { reason: `define reference periods for ${year}` },
+    async (tx) => {
+      for (const period of periods) {
+        await tx.execute(sql`
+          insert into reference_period
+            (org_id, frequency, start_date, end_date, label, fiscal_year)
+          values (${org.id}::uuid, ${period.frequency}::period_frequency,
+                  ${period.startDate}::date, ${period.endDate}::date,
+                  ${period.label}, ${period.fiscalYear})
+          on conflict (org_id, frequency, start_date) do nothing
+        `);
+      }
+    },
+  );
+
+  revalidatePath(path);
+  redirect(path);
 }
 
 export async function uploadDataset(formData: FormData) {
@@ -157,7 +213,22 @@ export async function applyMapping(formData: FormData) {
     dataset.sheet_name ?? undefined,
   );
 
-  // Persist the mapping so a recurring extract is mapped once, not monthly.
+  // Record the mapping on the dataset. This is what the commit reads: the
+  // mapping a dataset was staged with belongs to that dataset, and is part of
+  // its provenance — the bytes plus this mapping are what produced the
+  // observations (migration 0008).
+  await withRls(
+    claims,
+    { reason: `map columns for dataset ${datasetId}` },
+    (tx) =>
+      tx.execute(sql`
+        update source_dataset set applied_mapping = ${JSON.stringify(mapping)}::jsonb
+         where id = ${datasetId}::uuid
+      `),
+  );
+
+  // Naming it additionally files it in the organization's library, so a
+  // recurring extract is mapped once rather than every month. Optional.
   const mappingName = String(formData.get('mappingName') ?? '').trim();
   if (mappingName) {
     await withRls(
@@ -187,14 +258,18 @@ export async function commitStaged(formData: FormData) {
   const vintageName = String(formData.get('vintageName') ?? '').trim();
   if (!vintageName) fail(path, 'Name the vintage this data belongs to.');
 
-  const mappingRow = await withRls(claims, {}, async (tx) => {
+  // The mapping THIS dataset was staged with — not the organization's most
+  // recent one, which may belong to an entirely different file.
+  const dataset = await withRls(claims, {}, async (tx) => {
     const rows = (await tx.execute(sql`
-      select definition from column_mapping
-       where org_id = ${org.id}::uuid order by created_at desc limit 1
-    `)) as unknown as { definition: MappingDefinition }[];
+      select applied_mapping from source_dataset where id = ${datasetId}::uuid
+    `)) as unknown as { applied_mapping: MappingDefinition | null }[];
     return rows[0];
   });
-  if (!mappingRow) fail(path, 'Apply and save a column mapping before committing.');
+  if (!dataset) fail(`/orgs/${slug}/data`, 'No such dataset.');
+  if (!dataset.applied_mapping) {
+    fail(path, 'Map the columns and validate this dataset before committing it.');
+  }
 
   try {
     const vintageId = await withRls(
@@ -210,7 +285,7 @@ export async function commitStaged(formData: FormData) {
         return rows[0].id;
       },
     );
-    await commitDataset(claims, org.id, datasetId, vintageId, mappingRow.definition);
+    await commitDataset(claims, org.id, datasetId, vintageId, dataset.applied_mapping);
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     if (message === 'NEXT_REDIRECT') throw e;

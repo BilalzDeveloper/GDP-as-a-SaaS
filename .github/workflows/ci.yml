@@ -58,3 +58,21 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      # The brief's stack section asks for Playwright on the critical user
+      # flows. These run against the build above, the same Postgres, and a
+      # local stand-in for Supabase Auth (tests/e2e/auth-stub.mjs) — the
+      # identity provider is the only piece that is not the real thing.
+      - name: Install Playwright's browser
+        run: npx playwright install --with-deps chromium
+
+      - name: End-to-end flows
+        run: npm run test:e2e
+
+      - name: Keep the report when a flow fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

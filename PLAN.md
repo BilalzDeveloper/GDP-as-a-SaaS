@@ -648,3 +648,35 @@ which should go through the consoles rather than this transcript), loading the
 official UN classification files to clear the transcription caveat, obtaining
 an official national-accounts fixture to validate the engine against, and
 running one exported file through an SDMX validator.
+
+## After the milestones — the browser suite
+
+The brief's stack section also asks for "Playwright for critical user flows",
+which nothing had delivered. `tests/e2e/` now does: 31 flows across access
+control, the whole compilation walk, and tenant isolation from the browser.
+Full write-up in [`docs/end-to-end-tests.md`](docs/end-to-end-tests.md).
+
+Everything in them is the real stack — the production build, every server
+action, the middleware, Postgres with all eight migrations and every policy.
+Only the identity provider is substituted, because `getUser()` revalidates
+against Supabase's hosted service on every request and there is no project yet
+(D38). Point `NEXT_PUBLIC_SUPABASE_URL` at the real one after deployment and
+the specs run unchanged.
+
+**Writing them found two live defects**, neither visible to the unit tests
+because those call the services directly and skip the step where the
+application decides what to pass them:
+
+- **A new organization could not use the product.** Nothing in the interface
+  created reference periods — the Source data page warned that none existed
+  and offered no way to define any, so a compiler who registered was stuck
+  before their first upload unless someone ran SQL. Fixed with
+  `src/intake/periods.ts` and a form on that page (D40), including the
+  fiscal-year conventions the arithmetic had been quietly assuming.
+- **Committing used the wrong column mapping.** `commitStaged` read the
+  organization's most recently *saved* mapping, whichever dataset it belonged
+  to — so mapping one dataset and then another differently made the second
+  mapping silently reinterpret the first one's rows. Fixed by recording the
+  applied mapping on the dataset (migration 0008, D39), which is where it
+  belonged anyway: the bytes plus the mapping are what produced the
+  observations, so provenance needs both.

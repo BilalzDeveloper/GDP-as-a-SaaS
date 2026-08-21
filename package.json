@@ -12,7 +12,9 @@
     "db:seed": "node scripts/seed-reference.mjs",
     "spike:scale": "node scripts/spike-scale.mjs",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
@@ -25,6 +27,7 @@
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/node": "^22.15.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",

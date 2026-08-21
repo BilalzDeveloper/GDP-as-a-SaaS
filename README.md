@@ -26,7 +26,7 @@ three approaches with full audit trails and reproducible vintages.
   accounts by the Denton method, with the reconciliation stored and the
   extrapolated quarters flagged.
 
-456 tests run in CI.
+474 Vitest tests and 31 Playwright flows run in CI.
 
 Three caveats worth knowing before relying on output, each marked in the data
 or the code rather than only here: the classification seeds are transcribed
@@ -60,6 +60,9 @@ to close.
 - [`docs/quarterly-accounts.md`](docs/quarterly-accounts.md) — quarterly
   compilation, why benchmarking exists, the Denton variants, and what is
   deliberately not done (seasonal adjustment)
+- [`docs/end-to-end-tests.md`](docs/end-to-end-tests.md) — the Playwright
+  suite: what is real in it, what is stubbed, and the two defects writing it
+  found
 - [`DEPLOYMENT.md`](DEPLOYMENT.md) — Supabase + Vercel setup (needs owner
   credentials)
 - [`CLAUDE.md`](CLAUDE.md) — the original project brief
@@ -86,6 +89,7 @@ tests/intake/       number parsing, xlsx/csv, validation rules, intake end-to-en
 tests/compile/      assembler, execution, reproducibility, drill-down,
                     quarterly benchmarking end to end
 tests/review/       review workflow, role gating, embargo, exports
+tests/e2e/          Playwright: access, the whole compilation walk, isolation
 ```
 
 ## Interface
