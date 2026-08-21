@@ -447,6 +447,23 @@ RUN = org_shell('runs') + '''
     approach falls short of the headline. Discrepancies are reported, never
     removed by adjusting an estimate.</p>
 
+  <section class="panel">
+    <div class="panel-head"><h3>Components · 2024</h3></div>
+    <div class="panel-scroll"><table>
+      <thead><tr><th>Approach</th><th>Component</th><th class="num">Value</th><th></th></tr></thead>
+      <tbody>
+        <tr><td>production</td><td>&#931; gross value added</td><td class="num">115,747.75</td><td><a href="#">sources</a></td></tr>
+        <tr><td>production</td><td>Taxes on products</td><td class="num">14,208.30</td><td><a href="#">sources</a></td></tr>
+        <tr><td>production</td><td>Subsidies on products</td><td class="num">2,914.60</td><td><a href="#">sources</a></td></tr>
+        <tr><td>expenditure</td><td>Final consumption expenditure</td><td class="num">84,119.05</td><td><a href="#">sources</a></td></tr>
+        <tr><td>expenditure</td><td>Gross capital formation</td><td class="num">31,660.40</td><td><a href="#">sources</a></td></tr>
+        <tr><td>expenditure</td><td>Net exports</td><td class="num is-negative">&#8722;8,738.00</td><td><a href="#">sources</a></td></tr>
+        <tr><td>income</td><td>Factor incomes</td><td class="num">114,336.20</td><td><a href="#">sources</a></td></tr>
+        <tr><td>income</td><td>Net taxes on production and imports</td><td class="num">12,705.25</td><td><a href="#">sources</a></td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
   <h2>Value added by industry</h2>
   <section class="panel">
     <div class="panel-head"><h3>2024 · current prices</h3></div>
@@ -464,12 +481,13 @@ RUN = org_shell('runs') + '''
     </table></div>
   </section>
 
-  <h2>Source records — Manufacturing, 2024</h2>
+  <h2>Source records &#8212; Final consumption expenditure &#183; 2024</h2>
   <section class="panel"><div class="panel-scroll"><table>
-    <thead><tr><th>Transaction</th><th class="num">Value</th><th>Source file</th><th class="num">Row</th><th>As uploaded</th></tr></thead>
+    <thead><tr><th>Transaction</th><th>Industry</th><th>Sector</th><th class="num">Value</th><th>Source file</th><th class="num">Row</th><th>As uploaded</th></tr></thead>
     <tbody>
-      <tr><td class="mono">P.1</td><td class="num">88,617.40</td><td>abs-2024-annual.xlsx<br><span class="muted mono">3f9a1c7e08b2…</span></td><td class="num">417</td><td class="muted mono">{"isic":"C","txn":"P.1","period":"2024","value_nc_mn":"88617.4"}</td></tr>
-      <tr><td class="mono">P.2</td><td class="num">54,902.15</td><td>abs-2024-annual.xlsx<br><span class="muted mono">3f9a1c7e08b2…</span></td><td class="num">418</td><td class="muted mono">{"isic":"C","txn":"P.2","period":"2024","value_nc_mn":"54902.15"}</td></tr>
+      <tr><td class="mono">P.31</td><td class="mono">&#8212;</td><td class="mono">S.14</td><td class="num">71,455.30</td><td>hbs-2024.xlsx<br><span class="muted mono">3f9a1c7e08b2…</span></td><td class="num">417</td><td class="muted mono">{"txn":"P.31","sector":"S.14","period":"2024","value_nc_mn":"71455.3"}</td></tr>
+      <tr><td class="mono">P.31</td><td class="mono">&#8212;</td><td class="mono">S.15</td><td class="num">1,902.40</td><td>hbs-2024.xlsx<br><span class="muted mono">3f9a1c7e08b2…</span></td><td class="num">418</td><td class="muted mono">{"txn":"P.31","sector":"S.15","period":"2024","value_nc_mn":"1902.4"}</td></tr>
+      <tr><td class="mono">P.3</td><td class="mono">&#8212;</td><td class="mono">S.13</td><td class="num">10,761.35</td><td>gfs-2024.csv<br><span class="muted mono">b17c40e9d551…</span></td><td class="num">92</td><td class="muted mono">{"txn":"P.3","sector":"S.13","period":"2024","value_nc_mn":"10761.35"}</td></tr>
     </tbody>
   </table></div></section>
   <p><a href="#">Close drill-down</a></p>

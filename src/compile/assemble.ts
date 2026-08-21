@@ -19,6 +19,8 @@ import type {
 
 /** One observation, flattened to what the assembler needs. */
 export interface ObservationRow {
+  /** The stored observation this came from, for recording provenance. */
+  observationId: string;
   periodId: string;
   periodLabel: string;
   transactionCode: string;

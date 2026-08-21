@@ -816,3 +816,30 @@ excludes the individual services government provides. D46.
 Value added and the income components by institutional sector are not done —
 GDP does not need them, and the sector accounts proper are a larger piece of
 the SNA than this change.
+
+## After the milestones — every figure traces back to its source records
+
+Milestone 5 asked to "drill from an aggregate down to contributing source
+records", and half the aggregates could not. The run page looked observations
+up by `activity_item_id`, which happens to match how the assembler groups
+industries; household final consumption, capital formation, net exports and
+compensation of employees had no way back to the rows behind them. The
+components were not even displayed — they had been stored since milestone 5
+with nothing on the page to show them.
+
+It could not be fixed by looking harder at the transaction codes. Final
+consumption is now resolved by institutional sector (D46) and FISIM arrives on
+codes of its own (D45), so which rows fed a figure is a question about the
+assembler's rules rather than about the data. And a run pins its method
+version: re-deriving provenance from today's code would answer a question
+about today's rules, not about the run the reviewer has open.
+
+So the run records it. `src/compile/sources.ts` states once which rows feed
+which measure, execution writes that against every result row
+(`result_source`, migration 0011), and drill-down reads the record. A figure
+computed from other figures — per-capita, the growth rates — has no source
+rows and is shown without a link rather than with one leading nowhere. D47.
+
+The new panel that came with it, "Components", is the part a compiler will
+notice: the expenditure and income components each approach was built from,
+each with a way back to the observations behind it.

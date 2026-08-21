@@ -9,6 +9,7 @@ import { publishRun, reviewRun, runExecute, submitForReview } from '../actions';
 export const dynamic = 'force-dynamic';
 
 type ResultRow = {
+  id: string;
   period_label: string;
   approach: string;
   measure: string;
@@ -39,15 +40,46 @@ type DiagnosticRow = {
   subject: string | null;
 };
 
-/** Contributing source records for one drilled-into industry and period. */
+/** Contributing source records for one drilled-into figure. */
 type SourceRow = {
   transaction_code: string;
+  activity_code: string | null;
+  sector_code: string | null;
   value: string | null;
   source_row_number: number | null;
   raw: Record<string, string> | null;
   original_filename: string | null;
   sha256: string | null;
 };
+
+/** How each stored measure is named on the page. */
+const MEASURE_LABEL: Record<string, string> = {
+  gdp: 'GDP',
+  total_gross_value_added: 'Σ gross value added',
+  gross_value_added: 'Value added',
+  output: 'Output',
+  intermediate_consumption: 'Intermediate consumption',
+  taxes_on_products: 'Taxes on products',
+  subsidies_on_products: 'Subsidies on products',
+  final_consumption_expenditure: 'Final consumption expenditure',
+  gross_capital_formation: 'Gross capital formation',
+  net_exports: 'Net exports',
+  total_factor_incomes: 'Factor incomes',
+  net_taxes_on_production_and_imports: 'Net taxes on production and imports',
+  population: 'Population',
+};
+
+/** Total-economy components, listed per period beneath the headline. */
+const COMPONENT_MEASURES = [
+  'total_gross_value_added',
+  'taxes_on_products',
+  'subsidies_on_products',
+  'final_consumption_expenditure',
+  'gross_capital_formation',
+  'net_exports',
+  'total_factor_incomes',
+  'net_taxes_on_production_and_imports',
+];
 
 const fmt = (v: string | null) =>
   v === null ? '—' : Number(v).toLocaleString('en-GB', { maximumFractionDigits: 2 });
@@ -104,7 +136,7 @@ export default async function RunPage({
     if (runs.length === 0) return null;
 
     const results = (await tx.execute(sql`
-      select p.label as period_label, cr.approach, cr.measure, cr.price_basis,
+      select cr.id, p.label as period_label, cr.approach, cr.measure, cr.price_basis,
              cr.benchmarked,
              ci.code as activity_code, ci.name as activity_name,
              cr.activity_item_id, cr.value
@@ -125,26 +157,43 @@ export default async function RunPage({
 
     // Drill-down: from a per-industry aggregate back to the observations that
     // produced it, the staging rows those came from, and the source file.
+    // Drill-down reads the provenance recorded when the run executed
+    // (migration 0011) rather than working out which rows ought to have fed a
+    // figure. The run pins its method version; this shows what that method
+    // actually summed.
     let sources: SourceRow[] = [];
-    if (drill && period) {
+    if (drill) {
       sources = [
         ...((await tx.execute(sql`
-          select ts.transaction_code, o.value, sr.source_row_number, sr.raw,
+          select ts.transaction_code, ci.code as activity_code,
+                 si.code as sector_code, o.value,
+                 sr.source_row_number, sr.raw,
                  d.original_filename, d.sha256
-            from observation o
+            from result_source rs
+            join compilation_result cr on cr.id = rs.result_id
+            join observation o on o.id = rs.observation_id
             join time_series ts on ts.id = o.series_id
-            join reference_period p on p.id = o.period_id
+            left join classification_item ci on ci.id = ts.activity_item_id
+            left join classification_item si on si.id = ts.sector_item_id
             left join staging_row sr on sr.id = o.staging_row_id
             left join source_dataset d on d.id = o.source_dataset_id
-           where o.org_id = ${orgs[0].id}
-             and o.vintage_id = (select input_vintage_id from compilation_run
-                                  where id = ${runId}::uuid)
-             and ts.activity_item_id = ${drill}::uuid
-             and p.label = ${period}
-           order by ts.transaction_code
+           where rs.org_id = ${orgs[0].id}
+             and cr.run_id = ${runId}::uuid
+             and rs.result_id = ${drill}::bigint
+           order by ts.transaction_code, ci.code nulls first
         `)) as unknown as SourceRow[]),
       ];
     }
+
+    // Which figures have provenance to show, so a "sources" link is only
+    // offered where there is something behind it. Derived measures — growth
+    // rates, per-capita — are computed from other results and have none.
+    const withSources = (await tx.execute(sql`
+      select distinct rs.result_id
+        from result_source rs
+        join compilation_result cr on cr.id = rs.result_id
+       where cr.run_id = ${runId}::uuid
+    `)) as unknown as { result_id: string }[];
 
     const constraints = (await tx.execute(sql`
       select p.label as period_label, bc.approach::text as approach,
@@ -196,6 +245,7 @@ export default async function RunPage({
       constraints: [...constraints],
       sources,
       reviews: [...reviews],
+      withSources: new Set([...withSources].map((r) => String(r.result_id))),
       hasAdjustments: (adjustments[0]?.n ?? 0) > 0,
       role: membership[0]?.role ?? 'viewer',
     };
@@ -204,6 +254,19 @@ export default async function RunPage({
   if (!data) notFound();
   const { org, run, results, diagnostics, constraints, sources, reviews, role } =
     data;
+
+  /** The figure being drilled into, if any: it names its own panel. */
+  const drilled = drill ? results.find((r) => String(r.id) === drill) : undefined;
+
+  /**
+   * A link to the source records behind one figure, shown only where the run
+   * recorded some. Derived measures have none and get no link rather than a
+   * link to an empty table.
+   */
+  const Sources = ({ row }: { row: ResultRow }) =>
+    data.withSources.has(String(row.id)) ? (
+      <Link href={`/orgs/${org.slug}/runs/${run.id}?drill=${row.id}`}>sources</Link>
+    ) : null;
 
   const canCompile = role === 'admin' || role === 'compiler';
   const canReview = role === 'admin' || role === 'reviewer';
@@ -275,8 +338,14 @@ export default async function RunPage({
       r.period_label === periods[0],
   );
 
-  const drilledName = sources.length
-    ? results.find((r) => r.activity_item_id === drill)?.activity_name
+  const drilledName = drilled
+    ? [
+        MEASURE_LABEL[drilled.measure] ?? drilled.measure,
+        drilled.activity_name,
+        drilled.period_label,
+      ]
+        .filter(Boolean)
+        .join(' · ')
     : null;
 
   const STAGES = ['computed', 'under_review', 'approved', 'published'];
@@ -444,6 +513,47 @@ export default async function RunPage({
                 </tbody>
               </table>
             </Panel>
+
+            {/* The components each approach was built from. They were always
+                stored; until provenance was recorded there was nothing useful
+                to do with them on the page, and a figure with no way back to
+                its sources is the thing milestone 5 set out to avoid. */}
+            {periods.map((p) => {
+              const components = results.filter(
+                (r) =>
+                  r.period_label === p &&
+                  r.price_basis === 'current' &&
+                  r.activity_item_id === null &&
+                  COMPONENT_MEASURES.includes(r.measure),
+              );
+              if (components.length === 0) return null;
+              return (
+                <Panel key={`components-${p}`} title={`Components · ${p}`} scroll>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Approach</th>
+                        <th>Component</th>
+                        <th className="num">Value</th>
+                        <th />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {components.map((r) => (
+                        <tr key={r.id}>
+                          <td>{r.approach}</td>
+                          <td>{MEASURE_LABEL[r.measure] ?? r.measure}</td>
+                          <td className="num">{fmt(r.value)}</td>
+                          <td>
+                            <Sources row={r} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </Panel>
+              );
+            })}
 
             <Panel title="Statistical discrepancy" scroll>
               <table>
@@ -763,11 +873,7 @@ export default async function RunPage({
                               {fmt(r.value)}
                             </td>
                             <td>
-                              <Link
-                                href={`/orgs/${org.slug}/runs/${run.id}?drill=${r.activity_item_id}&period=${encodeURIComponent(p)}`}
-                              >
-                                sources
-                              </Link>
+                              <Sources row={r} />
                             </td>
                           </tr>
                         );
@@ -778,19 +884,21 @@ export default async function RunPage({
               );
             })}
 
-            {drill && period && (
+            {drill && (
               <>
-                <h2>
-                  Source records — {drilledName ?? 'industry'}, {period}
-                </h2>
+                <h2>Source records — {drilledName ?? 'figure'}</h2>
                 {sources.length === 0 ? (
-                  <p className="empty">No source records found for that cell.</p>
+                  <p className="empty">
+                    No source records were recorded for that figure.
+                  </p>
                 ) : (
                   <Panel scroll>
                     <table>
                       <thead>
                         <tr>
                           <th>Transaction</th>
+                          <th>Industry</th>
+                          <th>Sector</th>
                           <th className="num">Value</th>
                           <th>Source file</th>
                           <th className="num">Row</th>
@@ -801,6 +909,8 @@ export default async function RunPage({
                         {sources.map((s, i) => (
                           <tr key={i}>
                             <td className="mono">{s.transaction_code}</td>
+                            <td className="mono">{s.activity_code ?? '—'}</td>
+                            <td className="mono">{s.sector_code ?? '—'}</td>
                             <td className="num">{fmt(s.value)}</td>
                             <td>
                               {s.original_filename ?? '—'}

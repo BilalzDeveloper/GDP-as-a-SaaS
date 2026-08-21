@@ -296,10 +296,94 @@ describe('drill-down to source records', () => {
   });
 });
 
+describe('provenance, as recorded by the run', () => {
+  // The pure definition is tested in provenance.test.ts. What matters here is
+  // that the record is written, stays attached to the right figure, points
+  // only inside the run's own vintage, and survives a re-execution — a run
+  // pins its method version, so its provenance has to be as fixed as its
+  // figures (migration 0011).
+  const sourceCodes = async (measure: string) => {
+    const rows = await admin`
+      select ts.transaction_code
+        from result_source rs
+        join compilation_result cr on cr.id = rs.result_id
+        join observation o on o.id = rs.observation_id
+        join time_series ts on ts.id = o.series_id
+       where cr.run_id = ${runId} and cr.measure = ${measure}
+         and cr.activity_item_id is null
+       order by ts.transaction_code`;
+    return rows.map((r) => r.transaction_code as string);
+  };
+
+  it('records the rows behind a total-economy figure', async () => {
+    expect(await sourceCodes('taxes_on_products')).toEqual(['D.21']);
+    expect(await sourceCodes('total_factor_incomes')).toEqual(['B.2g', 'B.3g', 'D.1']);
+  });
+
+  it("attaches each industry's rows to that industry's figure and no other", async () => {
+    const [mismatched] = await admin`
+      select count(*)::int as n
+        from result_source rs
+        join compilation_result cr on cr.id = rs.result_id
+        join observation o on o.id = rs.observation_id
+        join time_series ts on ts.id = o.series_id
+       where cr.run_id = ${runId} and cr.measure = 'gross_value_added'
+         and ts.activity_item_id is distinct from cr.activity_item_id`;
+    expect(mismatched.n).toBe(0);
+
+    const [counted] = await admin`
+      select count(*)::int as n
+        from result_source rs
+        join compilation_result cr on cr.id = rs.result_id
+       where cr.run_id = ${runId} and cr.measure = 'gross_value_added'`;
+    // Three industries, output and intermediate consumption for each.
+    expect(counted.n).toBe(6);
+  });
+
+  it('records nothing for a figure derived from other figures', async () => {
+    const [derived] = await admin`
+      select count(*)::int as n
+        from result_source rs
+        join compilation_result cr on cr.id = rs.result_id
+       where cr.run_id = ${runId}
+         and cr.measure in ('gdp_per_capita', 'gdp_growth_percent')`;
+    expect(derived.n).toBe(0);
+  });
+
+  it('points only at observations in the vintage the run read', async () => {
+    // Provenance reaching outside the pinned vintage would break
+    // reproducibility more quietly than a wrong figure would.
+    const [stray] = await admin`
+      select count(*)::int as n
+        from result_source rs
+        join compilation_result cr on cr.id = rs.result_id
+        join observation o on o.id = rs.observation_id
+        join compilation_run r on r.id = cr.run_id
+       where cr.run_id = ${runId}
+         and o.vintage_id is distinct from r.input_vintage_id`;
+    expect(stray.n).toBe(0);
+  });
+
+  it('replaces rather than accumulates on re-execution', async () => {
+    const count = async () => {
+      const [r] = await admin`
+        select count(*)::int as n
+          from result_source rs
+          join compilation_result cr on cr.id = rs.result_id
+         where cr.run_id = ${runId}`;
+      return r.n as number;
+    };
+    const before = await count();
+    expect(before).toBeGreaterThan(0);
+    await executeRun(alice, orgA.id, runId);
+    expect(await count()).toBe(before);
+  });
+});
+
 describe('tenant isolation for compilation tables', () => {
   const tables = [
     'compilation_run', 'compilation_run_source', 'compilation_result',
-    'compilation_diagnostic',
+    'compilation_diagnostic', 'result_source',
   ];
 
   it.each(tables)("%s hides another tenant's rows", async (table) => {

@@ -28,6 +28,9 @@ three approaches with full audit trails and reproducible vintages.
 - **Per-capita GDP and growth rates** — population uploaded as a memorandum
   observation, per-capita stated in units of the currency, and growth
   period-on-period and year-on-year.
+- **Provenance for every figure** — each compiled result records the
+  observations behind it, so any aggregate traces back to the file, row and
+  raw cells it came from.
 - **Institutional sectors** — final consumption resolved from the sector that
   did the consuming, with sub-sectors rolling up and sector-free compilations
   still supported.
@@ -35,7 +38,7 @@ three approaches with full audit trails and reproducible vintages.
   applied by the engine under a per-run treatment, with a half-specified
   adjustment refused rather than compiled.
 
-529 Vitest tests and 38 Playwright flows run in CI.
+544 Vitest tests and 40 Playwright flows run in CI.
 
 Three caveats worth knowing before relying on output, each marked in the data
 or the code rather than only here: the classification seeds are transcribed

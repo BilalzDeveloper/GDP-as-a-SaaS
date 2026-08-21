@@ -11,7 +11,8 @@ import { compileGdp, ENGINE_VERSION, type BalancingAnchor } from '@/engine';
 import { assembleRun, type ObservationRow } from './assemble';
 import { benchmarkRun, BenchmarkingError, variantFor } from './benchmark';
 import { computeDerived } from './derived';
-import { MEASURE } from './measures';
+import { MEASURE, type Measure } from './measures';
+import { contributingRows, contributingRowsForGdp } from './sources';
 import { computeVolumes, VolumeError } from './volumes';
 
 export class ExecutionError extends Error {}
@@ -45,7 +46,8 @@ async function loadObservations(
   vintageId: string,
 ): Promise<ObservationRow[]> {
   const rows = (await tx.execute(sql`
-    select p.id            as period_id,
+    select o.id            as observation_id,
+           p.id            as period_id,
            p.label         as period_label,
            ts.transaction_code,
            ts.activity_item_id,
@@ -63,6 +65,7 @@ async function loadObservations(
      where o.org_id = ${orgId}::uuid and o.vintage_id = ${vintageId}::uuid
      order by p.start_date, ts.transaction_code
   `)) as unknown as {
+    observation_id: string;
     period_id: string;
     period_label: string;
     transaction_code: string;
@@ -76,6 +79,7 @@ async function loadObservations(
   }[];
 
   return [...rows].map((r) => ({
+    observationId: r.observation_id,
     periodId: r.period_id,
     periodLabel: r.period_label,
     transactionCode: r.transaction_code,
@@ -188,6 +192,15 @@ export async function executeRun(
         await tx.execute(sql`delete from compilation_result where run_id = ${runId}::uuid`);
         await tx.execute(sql`delete from compilation_diagnostic where run_id = ${runId}::uuid`);
 
+        // The rows each period was assembled from, so provenance can be
+        // recorded against every figure written below.
+        const rowsByPeriod = new Map<string, ObservationRow[]>();
+        for (const row of observations) {
+          const existing = rowsByPeriod.get(row.periodId);
+          if (existing) existing.push(row);
+          else rowsByPeriod.set(row.periodId, [row]);
+        }
+
         const periods = assembleRun(observations, {
           fisimTreatment: run.fisim_treatment,
           expenditureIncludesImputedRent:
@@ -207,7 +220,7 @@ export async function executeRun(
         ) => {
           // price_basis is part of a result's identity (migration 0005), so it
           // belongs in the conflict target as well as the row.
-          await tx.execute(sql`
+          const written = (await tx.execute(sql`
             insert into compilation_result
               (org_id, run_id, period_id, approach, measure, activity_item_id,
                price_basis, value)
@@ -217,8 +230,54 @@ export async function executeRun(
             on conflict (run_id, period_id, approach, measure, activity_item_id,
                          price_basis, benchmarked)
             do update set value = excluded.value
-          `);
+            returning id
+          `)) as unknown as { id: string }[];
           resultsWritten++;
+          await recordSources(
+            written[0].id, periodId, approach, measure, activityItemId,
+          );
+        };
+
+        /**
+         * Record which observations produced a figure (migration 0011).
+         *
+         * Written here, by the code that did the summing, rather than worked
+         * out when someone drills in: a run pins its method version, so its
+         * provenance has to be as fixed as its figures. Re-executing rewrites
+         * the result row in place, so the old provenance is cleared first.
+         */
+        const recordSources = async (
+          resultId: string,
+          periodId: string,
+          approach: string,
+          measure: string,
+          activityItemId: string | null,
+        ) => {
+          const periodRows = rowsByPeriod.get(periodId) ?? [];
+          const contributing =
+            measure === MEASURE.gdp
+              ? contributingRowsForGdp(
+                  periodRows,
+                  approach as 'production' | 'expenditure' | 'income',
+                )
+              : contributingRows(periodRows, measure as Measure, activityItemId);
+
+          await tx.execute(
+            sql`delete from result_source where result_id = ${resultId}::bigint`,
+          );
+          if (contributing.length === 0) return;
+          // A Postgres array literal in one parameter: the driver expands a
+          // JS array into a parameter LIST, which is not the same thing and
+          // does not cast to bigint[]. The ids are integers from the database,
+          // so the literal is built from numbers only.
+          const ids = `{${contributing
+            .map((r) => Number(r.observationId))
+            .join(',')}}`;
+          await tx.execute(sql`
+            insert into result_source (org_id, result_id, observation_id)
+            select ${orgId}::uuid, ${resultId}::bigint, unnest(${ids}::bigint[])
+            on conflict (result_id, observation_id) do nothing
+          `);
         };
 
         const writeDiagnostic = async (

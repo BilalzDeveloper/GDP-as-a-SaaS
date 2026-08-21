@@ -94,6 +94,26 @@ compilation_result (activity, period)
 so a reviewer asking "where did this 300 come from?" gets the two source rows
 that produced it, the file they came from, and the checksum of the exact bytes.
 
+## Provenance
+
+Every stored figure records the observations it was summed from
+(`result_source`, migration 0011), written at execution by the code that did
+the summing. The run page's "sources" link reads that record: the transaction,
+the industry and sector each row carried, the file it arrived in with its
+checksum, the row number, and the raw cells as uploaded.
+
+It is recorded rather than worked out on demand for two reasons. Final
+consumption is resolved by institutional sector and FISIM arrives on codes of
+its own, so which rows fed a figure is a question about the assembler's rules
+rather than about a transaction code. More importantly a run pins its method
+version: a drill-down that re-derived provenance from today's code would
+answer a question about today's rules, not about the run in front of the
+reviewer.
+
+Figures computed from other figures — per-capita GDP, the growth rates — have
+no source observations and are shown without a drill-down link rather than
+with one leading to an empty table.
+
 ## Re-executing
 
 Results and diagnostics are replaced wholesale on each execution — a run has

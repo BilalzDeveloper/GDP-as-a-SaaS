@@ -5,12 +5,14 @@
 import { describe, expect, it } from 'vitest';
 import { assemblePeriod, assembleRun, type ObservationRow } from '../../src/compile/assemble';
 
+let seq = 0;
 function obs(
   transactionCode: string,
   value: number,
   extra: Partial<ObservationRow> = {},
 ): ObservationRow {
   return {
+    observationId: `obs-${++seq}`,
     periodId: 'p1',
     periodLabel: '2023',
     transactionCode,

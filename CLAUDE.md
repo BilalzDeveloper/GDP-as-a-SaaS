@@ -126,6 +126,11 @@ Working rules for sessions on this repo:
 - **Audited writes need a reason, and the reason is read by people.** Anything
   passed to `withRls(claims, { reason })` shows up on the audit page — name
   what was acted on rather than quoting an id (D41).
+- **Every figure records what it was summed from.** `src/compile/sources.ts`
+  is the single definition of which observations feed which measure; execution
+  writes it to `result_source` and drill-down reads that record rather than
+  re-deriving it (D47). A new measure needs an entry there or it gets no
+  drill-down.
 - **Final consumption is resolved by institutional sector** (D46). A stated
   sector wins; a blank one falls back to the code, and only P.31 and P.32 name
   a sector unambiguously. `S.1` is never read as a component.

@@ -791,3 +791,36 @@ only the compiler can make, so neither is used.
 sector. GDP does not need them, and the sector accounts proper (S.11 through
 S.2 with their own balancing items) are a larger piece of the SNA than this
 change.
+
+## D47 — Provenance is recorded when a run executes, not worked out later
+**Decision:** every `compilation_result` row records the observations it was
+summed from, in `result_source` (migration 0011), written by the code that did
+the summing. Drill-down reads that record. The pure definition of which rows
+feed which figure lives in `src/compile/sources.ts` and is what both the
+assembler and the recorder use.
+**Why record rather than look up.** Two reasons; the second is the stronger.
+1. It is no longer derivable from a transaction code. Final consumption is
+   resolved by institutional sector (D46) and FISIM arrives on codes of its
+   own (D45), so "which rows made this figure" is a question about the
+   assembler's rules, not about the data.
+2. A run pins its method version, and non-negotiable 1 requires a published
+   figure to be re-computable from stored inputs plus that method. A
+   drill-down that re-derived provenance from today's code would answer a
+   question about today's rules rather than about the run the reviewer is
+   looking at. Recording makes the answer as reproducible as the figure.
+**What this fixes.** Milestone 5 asked to "drill from an aggregate down to
+contributing source records". Only per-industry aggregates could: the run page
+looked observations up by `activity_item_id`, which happens to match how the
+assembler groups industries. Household final consumption, capital formation,
+net exports and compensation of employees had no way back at all — and those
+components had no panel on the page either, so the stored figures were not
+even visible. Both are now there.
+**A derived measure gets no link rather than an empty table.** Per-capita and
+the growth rates are computed from other results, so they have no source rows;
+the page offers no drill-down for them, which is a truthful answer rather than
+a dead end.
+**Provenance is derived output, like the results themselves:** rewritten
+wholesale on each execution, not audited, reproducible from the vintage and
+the method version. It carries the same RLS as `compilation_result`, because
+knowing which source records lie behind a pre-release estimate is as
+market-sensitive as the estimate.

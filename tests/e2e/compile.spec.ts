@@ -39,6 +39,8 @@ const SECTOR_RUN_NAME = 'Expenditure by institutional sector';
 let page: Page;
 /** Set once the run exists, so later tests can come back to it. */
 let runUrl: string;
+/** The sector-split run, which the drill-down tests come back to. */
+let sectorRunUrl: string;
 
 test.beforeAll(async ({ browser }) => {
   page = await browser.newPage();
@@ -390,6 +392,7 @@ test('final consumption is read from the institutional sector that did it', asyn
   await page.getByRole('button', { name: 'Create run' }).click();
 
   await expect(page.getByRole('heading', { name: SECTOR_RUN_NAME })).toBeVisible();
+  sectorRunUrl = page.url();
   await page.getByRole('button', { name: 'Execute', exact: true }).click();
 
   // 1700 + 60 + 550 + 600 + 40 + 10 + 700 − 710 = 2950. Each of the three
@@ -401,4 +404,42 @@ test('final consumption is read from the institutional sector that did it', asyn
     .first()
     .getByRole('row', { name: new RegExp(`^${YEAR}`) });
   await expect(gdpRow).toContainText('2,950');
+});
+
+test('a component drills down to source records no code alone would find', async () => {
+  // Final consumption is assembled across institutional sectors and across
+  // three transaction codes (D46), so "which rows made this figure" cannot be
+  // answered from the code on the row. The run records what it summed, and
+  // this reads that record back through the interface.
+  await page.goto(sectorRunUrl);
+  const componentRow = page
+    .locator('.panel', { hasText: 'Components' })
+    .first()
+    .getByRole('row', { name: /Final consumption expenditure/ });
+  await expect(componentRow).toContainText('2,310'); // 1700 + 60 + 550
+  await componentRow.getByRole('link', { name: 'sources' }).click();
+
+  await expect(
+    page.getByRole('heading', { name: /Source records — Final consumption/ }),
+  ).toBeVisible();
+  // Scoped by the source table's own column header: filtering panels on the
+  // word "Transaction" also catches any diagnostic that happens to use it.
+  const sources = page
+    .locator('.panel')
+    .filter({ has: page.getByRole('columnheader', { name: 'Sector' }) });
+  // All three sectors, on two different codes, in one figure.
+  await expect(sources.getByRole('row', { name: /S\.14/ })).toContainText('1,700');
+  await expect(sources.getByRole('row', { name: /S\.15/ })).toContainText('60');
+  await expect(sources.getByRole('row', { name: /S\.13/ })).toContainText('550');
+  await expect(sources).toContainText('expenditure-sectors.csv');
+  await page.getByRole('link', { name: 'Close drill-down' }).click();
+});
+
+test('a derived figure offers no drill-down rather than an empty one', async () => {
+  // Per-capita GDP and the growth rates are computed from other results, not
+  // from observations. There is nothing to show, and saying so by omitting
+  // the link is better than a link to an empty table.
+  await page.goto(runUrl);
+  const perCapita = page.locator('.panel', { hasText: 'Per capita and growth' });
+  await expect(perCapita.getByRole('link', { name: 'sources' })).toHaveCount(0);
 });

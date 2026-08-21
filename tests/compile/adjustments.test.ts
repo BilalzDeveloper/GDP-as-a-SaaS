@@ -13,12 +13,14 @@ import { describe, expect, it } from 'vitest';
 import { assemblePeriod, type ObservationRow } from '@/compile/assemble';
 import { compileGdp } from '@/engine';
 
+let seq = 0;
 function row(
   transactionCode: string,
   value: number,
   activityCode: string | null = null,
 ): ObservationRow {
   return {
+    observationId: `obs-${++seq}`,
     periodId: 'p1',
     periodLabel: '2024',
     transactionCode,
