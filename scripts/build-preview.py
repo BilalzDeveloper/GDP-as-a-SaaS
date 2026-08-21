@@ -112,7 +112,8 @@ def plain_bar():
 
 def nav(current):
     items = [('Overview', 'overview'), ('Classifications', 'classifications'),
-             ('Source data', 'data'), ('Compilation runs', 'runs')]
+             ('Source data', 'data'), ('Compilation runs', 'runs'),
+             ('Audit trail', 'audit')]
     links = ''
     for label, k in items:
         mark = ' aria-current="page"' if k == current else ''
@@ -635,6 +636,103 @@ QUARTERLY = org_shell('runs') + """
 </main>"""
 
 
+AUDIT = org_shell('audit') + """
+<main>
+  <h1>Audit trail</h1>
+  <p class="lede">Every change to this organization's data: who made it, when,
+    what it was before, what it became, and the reason recorded at the time.</p>
+
+  <ul class="meta">
+    <li><span class="k">Entries</span><span class="v">4,182</span></li>
+    <li><span class="k">Showing</span><span class="v">100 most recent</span></li>
+  </ul>
+
+  <section class="panel">
+    <div class="panel-head"><h3>Filter</h3></div>
+    <div class="panel-body">
+      <p class="filter-row"><span class="k">Table</span>
+        <a href="#" aria-current="page">all</a>
+        <a href="#">compilation run (28)</a>
+        <a href="#">observation (3,904)</a>
+        <a href="#">reference period (20)</a>
+        <a href="#">review decision (6)</a>
+        <a href="#">source file (14)</a>
+        <a href="#">vintage (5)</a>
+      </p>
+      <p class="filter-row" style="margin-bottom:0"><span class="k">Who</span>
+        <a href="#" aria-current="page">anyone</a>
+        <a href="#">r.okonkwo@nso.example (91)</a>
+        <a href="#">j.halvorsen@nso.example (4,068)</a>
+        <a href="#">a.pereira@nso.example (23)</a>
+      </p>
+    </div>
+  </section>
+
+  <section class="panel"><div class="panel-scroll"><table class="audit">
+    <thead><tr><th>When</th><th>Who</th><th>What</th><th>Change</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono muted">2026-08-20 16:41:02</td>
+        <td class="mono">a.pereira@nso.example</td>
+        <td><span class="pill is-positive">insert</span> review decision<br><span class="muted">changes_requested · Construction output looks to double-count the Q2 infrastructure programme. Re-check against the GFS extract before resubmitting.</span></td>
+        <td><span class="muted">—</span></td>
+        <td>review run "2024 Annual Estimates, revision 1": changes_requested</td>
+      </tr>
+      <tr>
+        <td class="mono muted">2026-08-20 16:40:55</td>
+        <td class="mono">j.halvorsen@nso.example</td>
+        <td><span class="pill is-accent">update</span> compilation run<br><span class="muted">2024 Annual Estimates, revision 1 · under_review</span></td>
+        <td><ul class="changes"><li><span class="mono">status</span> <span class="muted">computed</span> → <span class="strong">under_review</span></li></ul></td>
+        <td>submit run "2024 Annual Estimates, revision 1" for review</td>
+      </tr>
+      <tr>
+        <td class="mono muted">2026-08-19 09:12:31</td>
+        <td class="mono">j.halvorsen@nso.example</td>
+        <td><span class="pill is-accent">update</span> observation<br><span class="muted">value 33715.25</span></td>
+        <td><ul class="changes"><li><span class="mono">value</span> <span class="muted">33402.10</span> → <span class="strong">33715.25</span></li></ul></td>
+        <td>correcting a keying error in the manufacturing return, confirmed against the original survey form</td>
+      </tr>
+      <tr>
+        <td class="mono muted">2026-08-19 09:04:18</td>
+        <td class="mono">j.halvorsen@nso.example</td>
+        <td><span class="pill is-accent">update</span> vintage<br><span class="muted">2024 revised</span></td>
+        <td><ul class="changes"><li><span class="mono">frozen_at</span> <span class="muted">∅</span> → <span class="strong">2026-08-19T09:04:18+00:00</span></li></ul></td>
+        <td>approval of run "2024 Annual Estimates, first release" freezes its input vintage</td>
+      </tr>
+      <tr>
+        <td class="mono muted">2026-08-18 14:22:07</td>
+        <td class="mono">r.okonkwo@nso.example</td>
+        <td><span class="pill is-accent">update</span> source file<br><span class="muted">Merchandise trade 2024 Q1–Q4 · trade-2024.csv · committed</span></td>
+        <td><ul class="changes"><li><span class="mono">status</span> <span class="muted">validated</span> → <span class="strong">committed</span></li></ul></td>
+        <td>commit source file "Merchandise trade 2024 Q1–Q4" into vintage "2024 revised"</td>
+      </tr>
+      <tr>
+        <td class="mono muted">2026-08-18 11:03:44</td>
+        <td class="mono">r.okonkwo@nso.example</td>
+        <td><span class="pill is-accent">update</span> membership<br><span class="muted">reviewer</span></td>
+        <td><ul class="changes"><li><span class="mono">role</span> <span class="muted">viewer</span> → <span class="strong">reviewer</span></li></ul></td>
+        <td>add a.pereira@nso.example as reviewer</td>
+      </tr>
+    </tbody>
+  </table></div></section>
+
+  <p><a class="backlink" href="#">Older entries →</a></p>
+
+  <div class="callout is-note">
+    <p class="callout-title">What this trail can and cannot be</p>
+    <p class="muted">It is append-only in the database, not by convention: a
+      trigger rejects any update or delete of an entry, including from a
+      privileged role. Every audited write must carry a reason — a write
+      without one is refused rather than recorded blank.</p>
+    <p class="muted" style="margin-bottom:0">It records the change, not the
+      intent behind it. A reason of "correcting a keying error" is a claim by
+      the person who made the change, and the trail preserves that claim
+      faithfully without vouching for it. Published figures are protected
+      separately: a frozen vintage cannot be altered at all.</p>
+  </div>
+</main>"""
+
+
 SCREENS = [
     ('landing', 'Landing', '/', LANDING,
      'Signed out. The three guarantees are the ones the brief calls '
@@ -670,6 +768,10 @@ SCREENS = [
      'All three approaches side by side, the discrepancy between them, '
      'drill-down to the source rows behind a cell, and the non-additivity '
      'note that stops chain-linking being reported as a bug.'),
+    ('audit', 'Audit trail', '/orgs/…/audit', AUDIT,
+     'Non-negotiable 2 made readable. Every change with its actor, its '
+     'field-level diff and the reason recorded at the time — append-only in '
+     'the database, and filterable by a URL an auditor can cite.'),
     ('quarterly', 'Quarterly run', '/orgs/…/runs/[id]', QUARTERLY,
      'A quarterly run benchmarked to the annual accounts by the Denton '
      'method. The indicator is kept beside the reconciled figure, because the '
@@ -681,7 +783,7 @@ def build() -> str:
     app_css = scoped_app_css()
     rail = []
     frames = []
-    groups = [('Getting in', 2), ('Setting up', 3), ('Compiling', 5)]
+    groups = [('Getting in', 2), ('Setting up', 3), ('Compiling', 6)]
     i = 0
     for label, count in groups:
         rail.append(f'<p class="rail-group">{label}</p>')
@@ -910,7 +1012,7 @@ TEMPLATE = '''<title>Compilation Platform Screens</title>
 <header class="masthead">
   <h1>Compilation Platform Screens</h1>
   <p>
-    The ten screens of the SNA 2008 GDP compilation platform, from sign-in
+    The eleven screens of the SNA 2008 GDP compilation platform, from sign-in
     through to a quarterly run benchmarked to the annual accounts.
   </p>
 </header>

@@ -453,6 +453,76 @@ td.strong {
   font-weight: 600;
 }
 
+/* The audit table: a timestamp should never wrap, and the reason — the "why"
+   the trail exists for — deserves the room. */
+table.audit td:first-child,
+table.audit th:first-child {
+  white-space: nowrap;
+  width: 1%;
+}
+
+/* The actor's email is their identity in the record; breaking it mid-token
+   to save width makes it unreadable, so give the column room instead. */
+table.audit td:nth-child(2) {
+  min-width: 12rem;
+  overflow-wrap: break-word;
+}
+
+table.audit td:nth-child(3) {
+  min-width: 12rem;
+}
+
+/* A changed id is a long unbreakable token and would otherwise push the
+   table wider than the panel, pushing the reason — the column that matters
+   most — off the edge. */
+table.audit td:nth-child(4) {
+  overflow-wrap: anywhere;
+}
+
+table.audit td:last-child,
+table.audit th:last-child {
+  min-width: 14rem;
+}
+
+/* A row of filter links that reads as one line of prose rather than a form. */
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.86rem;
+  margin: 0 0 0.6rem;
+}
+
+.filter-row .k {
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-right: 0.15rem;
+}
+
+.filter-row a[aria-current='page'] {
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration-color: var(--accent);
+}
+
+/* Field-level changes in an audit entry: one line each, values in mono so a
+   digit that moved is visible at a glance. */
+.changes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.82rem;
+}
+
+.changes .mono {
+  color: var(--ink-2);
+}
+
 /* --- Status and severity -------------------------------------------------
    State is encoded in form as well as text, so what needs attention reads
    before it is read. */

@@ -652,7 +652,7 @@ running one exported file through an SDMX validator.
 ## After the milestones — the browser suite
 
 The brief's stack section also asks for "Playwright for critical user flows",
-which nothing had delivered. `tests/e2e/` now does: 31 flows across access
+which nothing had delivered. `tests/e2e/` now does: 34 flows across access
 control, the whole compilation walk, and tenant isolation from the browser.
 Full write-up in [`docs/end-to-end-tests.md`](docs/end-to-end-tests.md).
 
@@ -680,3 +680,30 @@ application decides what to pass them:
   applied mapping on the dataset (migration 0008, D39), which is where it
   belonged anyway: the bytes plus the mapping are what produced the
   observations, so provenance needs both.
+
+## After the milestones — the audit trail gets a reader
+
+Non-negotiable 2 says every value change records who, when, what and why,
+because NSOs answer to parliaments and international bodies. The *recording*
+had been in place since milestone 1: an `after insert or update or delete`
+trigger on every tenant table, an append-only log a second trigger refuses to
+modify, a mandatory reason, and an RLS policy letting members read it.
+
+That policy had no caller. Nothing in the application could open the trail, so
+the guarantee was discharged to nobody.
+
+`/orgs/<slug>/audit` now reads it: field-level changes old → new, filters by
+table and by actor as URLs an auditor can cite, paging that walks backwards by
+id rather than by offset (offsets shift under inserts, and a moving list can
+hide a row). The reason strings the application records were also rewritten —
+they read `submit run 2d22c63d-20cc-46cd-…`, which is a record in the same
+sense a locked filing cabinet is a library, and now read
+`submit run "2023 Annual Estimates, first release" for review`. D41.
+
+Two details worth stating: a review decision's summary includes the reviewer's
+note, which lives in no field diff because a review is an insert — requiring
+reviewers to explain themselves and then not showing it would make the
+requirement decorative. And the page says what the trail is *not*: it records
+the change, not the intent, so a reason of "correcting a keying error" is a
+claim by the person who made it, preserved faithfully without being vouched
+for.

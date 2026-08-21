@@ -117,12 +117,13 @@ export async function executeRun(
 ): Promise<ExecutionSummary> {
   const run = await withRls(claims, {}, async (tx) => {
     const rows = (await tx.execute(sql`
-      select id, input_vintage_id, anchor_approach, status, frequency::text,
+      select id, name, input_vintage_id, anchor_approach, status, frequency::text,
              volume_reference_period_label, benchmark_source_run_id,
              benchmark_method
         from compilation_run where id = ${runId}::uuid
     `)) as unknown as {
       id: string;
+      name: string;
       input_vintage_id: string;
       anchor_approach: BalancingAnchor;
       status: string;
@@ -135,7 +136,8 @@ export async function executeRun(
   });
   if (!run) throw new ExecutionError('No such compilation run.');
 
-  await withRls(claims, { reason: `execute run ${runId}` }, (tx) =>
+  // Names, not ids: the reason is read by people (see the audit page).
+  await withRls(claims, { reason: `execute run "${run.name}"` }, (tx) =>
     tx.execute(sql`
       update compilation_run set status = 'computing', error_message = null
        where id = ${runId}::uuid
@@ -145,7 +147,7 @@ export async function executeRun(
   try {
     return await withRls(
       claims,
-      { reason: `store results for run ${runId}` },
+      { reason: `store results for run "${run.name}"` },
       async (tx) => {
         const observations = await loadObservations(tx, orgId, run.input_vintage_id);
         if (observations.length === 0) {
@@ -417,7 +419,7 @@ export async function executeRun(
     );
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    await withRls(claims, { reason: `run ${runId} failed` }, (tx) =>
+    await withRls(claims, { reason: `run "${run.name}" failed` }, (tx) =>
       tx.execute(sql`
         update compilation_run set status = 'failed', error_message = ${message}
          where id = ${runId}::uuid

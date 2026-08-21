@@ -237,3 +237,47 @@ test('the figures are reproducible: re-executing gives the same GDP', async () =
     .getByRole('row', { name: new RegExp(`^${YEAR}`) });
   await expect(gdpRow).toContainText('1,600');
 });
+
+test('the audit trail shows who did what, and why', async () => {
+  // Non-negotiable 2 is only discharged if someone can read the record. This
+  // is that reading, from the browser: the run being created, executed and
+  // published, each entry naming the person and carrying the reason the
+  // application recorded at the time.
+  await page.goto(`/orgs/${slug}/audit`);
+  await expect(page.getByRole('heading', { name: 'Audit trail' })).toBeVisible();
+
+  const rows = page.getByRole('table').getByRole('row');
+  await expect(rows.filter({ hasText: 'compilation run' }).first()).toBeVisible();
+  await expect(page.getByText(`create compilation run "${RUN_NAME}"`)).toBeVisible();
+  await expect(page.getByText(adminEmail).first()).toBeVisible();
+
+  // The status transitions are recorded as changes, old → new.
+  await expect(page.getByText('published', { exact: false }).first()).toBeVisible();
+});
+
+test('the audit trail filters to one table and stays a citable URL', async () => {
+  // An auditor should be able to put the filtered view in a report and come
+  // back to it, so the filters are links rather than form state.
+  await page.getByRole('link', { name: /^review decision/ }).click();
+  await expect(page).toHaveURL(/table=run_review/);
+
+  // Every entry now shown is a review decision and nothing else. Asserted on
+  // the rows rather than on page text: the reviewer's note mentions a source
+  // file, and matching that would test the fixture instead of the filter.
+  const rows = page.locator('tbody tr');
+  await expect(rows.first()).toBeVisible();
+  await expect(rows.filter({ hasNotText: 'review decision' })).toHaveCount(0);
+
+  // The reviewer's own words, preserved.
+  await expect(
+    page.getByText('Checked the industry breakdown against the source file'),
+  ).toBeVisible();
+});
+
+test('a viewer cannot alter the trail', async () => {
+  // The append-only guarantee is enforced by a database trigger, not by the
+  // absence of a button — tests/rls/isolation.test.ts proves that against
+  // direct SQL. What matters here is that the interface offers no way in.
+  await expect(page.getByRole('button', { name: /delete|edit|remove/i })).toHaveCount(0);
+  await expect(page.getByText('append-only in the database')).toBeVisible();
+});

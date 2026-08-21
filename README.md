@@ -26,7 +26,7 @@ three approaches with full audit trails and reproducible vintages.
   accounts by the Denton method, with the reconciliation stored and the
   extrapolated quarters flagged.
 
-474 Vitest tests and 31 Playwright flows run in CI.
+494 Vitest tests and 34 Playwright flows run in CI.
 
 Three caveats worth knowing before relying on output, each marked in the data
 or the code rather than only here: the classification seeds are transcribed
@@ -89,6 +89,7 @@ tests/intake/       number parsing, xlsx/csv, validation rules, intake end-to-en
 tests/compile/      assembler, execution, reproducibility, drill-down,
                     quarterly benchmarking end to end
 tests/review/       review workflow, role gating, embargo, exports
+tests/audit/        making the audit trail readable
 tests/e2e/          Playwright: access, the whole compilation walk, isolation
 ```
 
@@ -109,6 +110,18 @@ python3 scripts/build-preview.py preview.html
 
 It reads `globals.css` at build time and re-scopes it, so the preview cannot
 drift from the application it is showing.
+
+## Audit trail
+
+Every tenant table carries an `after insert or update or delete` trigger that
+writes to an append-only `audit_log`: who, when, which row, the whole row
+before and after, and a **mandatory reason**. A write that sets no reason is
+refused rather than recorded blank, and a second trigger rejects any update or
+delete of a log entry — including from a privileged role.
+
+`/orgs/<slug>/audit` reads it back: field-level changes old → new, filters by
+table and by actor as citable URLs, and the reason in plain words rather than
+a UUID (`DECISIONS.md` D41).
 
 ## Tenant isolation
 

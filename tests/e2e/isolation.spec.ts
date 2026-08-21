@@ -99,7 +99,7 @@ test('a nonexistent organization looks exactly the same', async () => {
 });
 
 test('every section of another tenant is closed, not just the overview', async () => {
-  for (const section of ['classifications', 'data', 'runs']) {
+  for (const section of ['classifications', 'data', 'runs', 'audit']) {
     const response = await page.goto(`/orgs/${insiderSlug}/${section}`);
     expect(response?.status(), `/${section} was reachable`).toBe(404);
   }

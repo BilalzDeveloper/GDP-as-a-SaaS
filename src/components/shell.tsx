@@ -7,6 +7,7 @@ export const SECTIONS = [
   { key: 'classifications', label: 'Classifications', path: '/classifications' },
   { key: 'data', label: 'Source data', path: '/data' },
   { key: 'runs', label: 'Compilation runs', path: '/runs' },
+  { key: 'audit', label: 'Audit trail', path: '/audit' },
 ] as const;
 
 export type SectionKey = (typeof SECTIONS)[number]['key'];

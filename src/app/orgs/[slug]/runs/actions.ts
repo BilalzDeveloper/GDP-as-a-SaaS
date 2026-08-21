@@ -3,7 +3,7 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { sql } from 'drizzle-orm';
-import { withRls } from '@/db/rls';
+import { withRls, type RlsClaims } from '@/db/rls';
 import { getVerifiedClaims } from '@/lib/supabase/server';
 import { executeRun, ExecutionError } from '@/compile/execute';
 
@@ -34,6 +34,18 @@ async function orgFor(slug: string) {
   });
   if (!org) redirect('/orgs');
   return { claims, org };
+}
+
+/**
+ * The run's name, for the audit reason. The "why" in the trail is read by
+ * people — a UUID there is a record nobody can use (see the audit page).
+ */
+async function runName(claims: RlsClaims, runId: string): Promise<string> {
+  const rows = await withRls(claims, {}, (tx) =>
+    tx.execute(sql`select name from compilation_run where id = ${runId}::uuid`),
+  );
+  const name = (rows as unknown as { name: string }[])[0]?.name;
+  return name ? `"${name}"` : runId;
 }
 
 export async function createRun(formData: FormData) {
@@ -123,7 +135,7 @@ export async function submitForReview(formData: FormData) {
   const { claims } = await orgFor(slug);
 
   try {
-    await withRls(claims, { reason: `submit run ${runId} for review` }, (tx) =>
+    await withRls(claims, { reason: `submit run ${await runName(claims, runId)} for review` }, (tx) =>
       tx.execute(sql`select public.submit_run_for_review(${runId}::uuid)`),
     );
   } catch (e) {
@@ -147,10 +159,13 @@ export async function reviewRun(formData: FormData) {
   if (!note) fail(path, 'A review must record a note saying why.');
 
   try {
-    await withRls(claims, { reason: `review run ${runId}: ${decision}` }, (tx) =>
-      tx.execute(
-        sql`select public.review_run(${runId}::uuid, ${decision}::review_decision, ${note})`,
-      ),
+    await withRls(
+      claims,
+      { reason: `review run ${await runName(claims, runId)}: ${decision}` },
+      (tx) =>
+        tx.execute(
+          sql`select public.review_run(${runId}::uuid, ${decision}::review_decision, ${note})`,
+        ),
     );
   } catch (e) {
     fail(path, dbError(e, 'The review could not be recorded.'));
@@ -172,7 +187,7 @@ export async function publishRun(formData: FormData) {
   }
 
   try {
-    await withRls(claims, { reason: `publish run ${runId}` }, (tx) =>
+    await withRls(claims, { reason: `publish run ${await runName(claims, runId)}` }, (tx) =>
       tx.execute(
         sql`select public.publish_run(${runId}::uuid, ${embargo ? embargo.toISOString() : null}::timestamptz)`,
       ),

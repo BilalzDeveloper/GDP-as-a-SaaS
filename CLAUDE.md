@@ -120,6 +120,9 @@ Working rules for sessions on this repo:
   and the test database; only the identity provider is stubbed
   (`tests/e2e/auth-stub.mjs`, D38). See
   [`docs/end-to-end-tests.md`](docs/end-to-end-tests.md).
+- **Audited writes need a reason, and the reason is read by people.** Anything
+  passed to `withRls(claims, { reason })` shows up on the audit page — name
+  what was acted on rather than quoting an id (D41).
 - **The engine stays pure.** `src/engine/` imports nothing outside itself —
   no database, no npm dependency, no I/O. `tests/engine/purity.test.ts`
   enforces it. Every function cites the SNA 2008 paragraph or standard

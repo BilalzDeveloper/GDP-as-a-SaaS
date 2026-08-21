@@ -193,10 +193,11 @@ export async function applyMapping(formData: FormData) {
 
   const dataset = await withRls(claims, {}, async (tx) => {
     const rows = (await tx.execute(sql`
-      select id, file_bytes, original_filename, content_type, sheet_name
+      select id, name, file_bytes, original_filename, content_type, sheet_name
         from source_dataset where id = ${datasetId}::uuid
     `)) as unknown as {
       id: string;
+      name: string;
       file_bytes: Buffer;
       original_filename: string;
       content_type: string;
@@ -219,7 +220,7 @@ export async function applyMapping(formData: FormData) {
   // observations (migration 0008).
   await withRls(
     claims,
-    { reason: `map columns for dataset ${datasetId}` },
+    { reason: `map the columns of source file "${dataset.name}"` },
     (tx) =>
       tx.execute(sql`
         update source_dataset set applied_mapping = ${JSON.stringify(mapping)}::jsonb

@@ -54,7 +54,9 @@ validate, commit into a vintage, create a run, execute it, read GDP by all
 three approaches, see the discrepancy, drill from Manufacturing's value added
 down to the P.1 and P.2 rows of the source file, submit for review, be refused
 because you compiled it yourself, add a reviewer, approve, watch the vintage
-freeze, publish under embargo, and download both exports.
+freeze, publish under embargo, download both exports, and read the whole thing
+back out of the audit trail — the run's creation, execution and publication,
+each entry naming the person and carrying the reason recorded at the time.
 
 The fixture is a small internally consistent economy where production and
 income both give GDP = 1600, so any other figure on screen is the application

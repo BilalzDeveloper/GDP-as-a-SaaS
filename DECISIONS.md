@@ -626,3 +626,39 @@ year the period begins in (the Australian and US federal convention). The
 convention that names the year it *ends* in is equally common, so the label is
 stored per period and nothing downstream parses it — an organization that
 publishes the other way can define its periods with the labels it already uses.
+
+## D41 — The audit trail has a reader, and its reasons name things
+**Decision:** `/orgs/<slug>/audit` renders the trail: when, who, what table and
+row, the field-level change old → new, and the reason. Filters by table and by
+actor are links rather than form state, and paging walks backwards from an id.
+The reason strings the application records were rewritten to name what they
+acted on instead of quoting a UUID.
+**Why:** non-negotiable 2 says "every value change records who, when, what
+changed, and why — NSOs are accountable to parliaments and international
+bodies". The *recording* has been in place since milestone 1: a trigger on
+every tenant table, an append-only log a trigger refuses to modify, a mandatory
+reason, and a policy letting members read it. What was missing was anyone able
+to read it. A trail nobody can open does not discharge accountability to
+anybody, and the RLS policy granting `select` had no caller.
+**Why the reasons changed:** they read `submit run 2d22c63d-20cc-46cd-…` and
+`commit dataset 30bcfa44-… into vintage 30c6e981-…`. That is a record in the
+same sense a locked filing cabinet is a library. They now read
+`submit run "2023 Annual Estimates, first release" for review`. Resolving the
+name costs one small query on a path that already does several.
+**Choices inside the reader:**
+- **Filters are URLs.** An auditor citing a view in a report should be able to
+  link to it and come back to it.
+- **Paging by id, not offset.** Offsets shift under inserts, and an auditor
+  scrolling a moving list can skip a row without knowing.
+- **INSERTs and DELETEs list no field diff.** Every column of a new row is
+  trivially "new"; listing them would bury the UPDATEs, which are what someone
+  investigating a changed figure is looking for. The row summary says what was
+  created, per table — and for a review decision that summary includes the
+  reviewer's note, which lives in no diff and is the substance of the record.
+- **`file_bytes` and the timestamps are excluded** from diffs: megabytes of
+  base64 and a restatement of `occurred_at`.
+**What the page says about itself:** that the trail records the change and not
+the intent — a reason of "correcting a keying error" is a claim by the person
+who made the change, preserved faithfully without being vouched for. Published
+figures are protected by vintage freezing instead, which is a different
+guarantee and worth not conflating.

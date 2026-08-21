@@ -60,6 +60,31 @@ export async function loadReferenceContext(
 }
 
 /**
+ * Names for the audit reason.
+ *
+ * The reason is the "why" non-negotiable 2 demands, and it is read by people
+ * — a compiler checking their own work, an auditor answering to a parliament.
+ * A reason quoting a UUID is technically a record and practically useless, so
+ * anything that goes into one is resolved to the name a person would use.
+ * Falls back to the id only when the row has gone.
+ */
+async function nameOfDataset(claims: RlsClaims, datasetId: string): Promise<string> {
+  const rows = await withRls(claims, {}, (tx) =>
+    tx.execute(sql`select name from source_dataset where id = ${datasetId}::uuid`),
+  );
+  const name = (rows as unknown as { name: string }[])[0]?.name;
+  return name ? `"${name}"` : datasetId;
+}
+
+async function nameOfVintage(claims: RlsClaims, vintageId: string): Promise<string> {
+  const rows = await withRls(claims, {}, (tx) =>
+    tx.execute(sql`select name from data_vintage where id = ${vintageId}::uuid`),
+  );
+  const name = (rows as unknown as { name: string }[])[0]?.name;
+  return name ? `"${name}"` : vintageId;
+}
+
+/**
  * Apply a mapping to a dataset's parsed rows, validate them, and write the
  * result to staging. Re-runnable: staging and issues are replaced wholesale,
  * so a compiler can adjust the mapping and re-validate as often as needed.
@@ -72,9 +97,10 @@ export async function stageAndValidate(
   mapping: MappingDefinition,
   expectedPeriodLabels?: string[],
 ): Promise<ValidationResult> {
+  const datasetName = await nameOfDataset(claims, datasetId);
   return withRls(
     claims,
-    { reason: `stage and validate dataset ${datasetId}` },
+    { reason: `validate source file ${datasetName}` },
     async (tx) => {
       const context = await loadReferenceContext(tx, orgId, mapping);
       const resolved = resolveRows(file, mapping, context);
@@ -151,9 +177,13 @@ export async function commitDataset(
   vintageId: string,
   mapping: MappingDefinition,
 ): Promise<{ observationsWritten: number }> {
+  const [datasetName, vintageName] = await Promise.all([
+    nameOfDataset(claims, datasetId),
+    nameOfVintage(claims, vintageId),
+  ]);
   return withRls(
     claims,
-    { reason: `commit dataset ${datasetId} into vintage ${vintageId}` },
+    { reason: `commit source file ${datasetName} into vintage ${vintageName}` },
     async (tx) => {
       const errors = (await tx.execute(sql`
         select count(*)::int as n from validation_issue
