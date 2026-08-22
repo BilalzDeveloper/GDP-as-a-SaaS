@@ -127,6 +127,10 @@ Working rules for sessions on this repo:
 - **Audited writes need a reason, and the reason is read by people.** Anything
   passed to `withRls(claims, { reason })` shows up on the audit page — name
   what was acted on rather than quoting an id (D41).
+- **The benchmark seed is generated.** `scripts/build-benchmark-seed.py`
+  writes `seeds/benchmarks.csv`; correct a figure there, not in the CSV. The
+  GCC oil/non-oil figures are value added at basic prices and must never be
+  presented as summing to GDP (D52).
 - **The benchmark figures are transcribed, not official** (D51). `verified` is
   false on the seeded source, every page that shows them says so, and a test
   asserts it. `scripts/load-benchmarks.mjs` loads the World Bank series and the

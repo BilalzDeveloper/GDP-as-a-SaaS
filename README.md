@@ -38,7 +38,7 @@ three approaches with full audit trails and reproducible vintages.
   applied by the engine under a per-run treatment, with a half-specified
   adjustment refused rather than compiled.
 
-567 Vitest tests and 57 Playwright flows run in CI.
+571 Vitest tests and 59 Playwright flows run in CI.
 
 Three caveats worth knowing before relying on output, each marked in the data
 or the code rather than only here: the classification seeds are transcribed
@@ -125,12 +125,14 @@ drift from the application it is showing.
 
 ## Insights
 
-`/insights` ranks published GDP for the twenty largest economies and the six
-GCC states, by total and by output per head, with a page per country that puts
-your own published runs beside the benchmark.
+`/insights` ranks published GDP for thirty economies over 2021–2023 — by
+total, by output per head and by growth — with a page per country that puts
+your own published runs beside the benchmark. The six GCC states also carry
+the oil and non-oil value added split every Gulf statistical office publishes.
 
-**The figures that ship are transcribed, not official** — approximate 2023 GDP
-and population entered by hand because this was built without network access.
+**The figures that ship are transcribed, not official** — approximate GDP,
+population and the GCC oil split, entered by hand because this was built
+without network access.
 The source is marked unverified, every page says so, and a test asserts the
 flag. `scripts/load-benchmarks.mjs` replaces them with the World Bank series
 and the notices disappear, because the pages prefer a verified source.

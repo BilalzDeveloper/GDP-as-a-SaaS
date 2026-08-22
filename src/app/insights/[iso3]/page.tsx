@@ -112,6 +112,78 @@ export default async function CountryInsightsPage({
           </li>
         </ul>
 
+        {country.series.length > 1 && (
+          <>
+            <h2>The series</h2>
+            <Panel scroll>
+              <table className="ranking">
+                <thead>
+                  <tr>
+                    <th>Period</th>
+                    <th className="num">GDP (US$)</th>
+                    <th className="bar-col">Relative size</th>
+                    <th className="num">Change</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {country.series.map((point, i) => {
+                    const max = Math.max(...country.series.map((p) => p.gdp), 1);
+                    const previous = country.series[i - 1];
+                    const change =
+                      previous && previous.gdp !== 0
+                        ? ((point.gdp - previous.gdp) / previous.gdp) * 100
+                        : null;
+                    return (
+                      <tr key={point.periodLabel}>
+                        <td className="mono">{point.periodLabel}</td>
+                        <td className="num strong">{usd(point.gdp)}</td>
+                        <td className="bar-col">
+                          <span
+                            className="bar"
+                            style={{ width: `${(point.gdp / max) * 100}%` }}
+                            title={`${point.periodLabel}: ${usd(point.gdp)}`}
+                          />
+                        </td>
+                        <td className={change !== null && change < 0 ? 'num is-negative' : 'num'}>
+                          {change === null
+                            ? '—'
+                            : `${change > 0 ? '+' : ''}${change.toFixed(1)}%`}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </Panel>
+            <p className="muted">
+              Nominal, in US dollars, so a change here mixes real growth,
+              domestic inflation and the exchange rate. A fall in dollar terms
+              is not by itself a contraction — a currency can do it on its own.
+            </p>
+          </>
+        )}
+
+        {country.oil && (
+          <>
+            <h2>Oil and the rest of the economy</h2>
+            {/* A stat, not a second hero: exactly one figure leads a page,
+                and on this page that is the size of the economy. */}
+            <div className="stat">
+              <p className="stat-figure">{country.oil.oilShare.toFixed(1)}%</p>
+              <p className="stat-label">
+                of value added came from the petroleum sector in{' '}
+                {country.periodLabel} — {usd(country.oil.oilGva)} of oil against{' '}
+                {usd(country.oil.nonOilGva)} from everything else.
+              </p>
+            </div>
+            <p className="muted">
+              Value added at <strong>basic prices</strong>. The two figures sum
+              to gross value added, not to the GDP above, which also carries
+              taxes less subsidies on products.
+            </p>
+          </>
+        )}
+
         <h2>Your published compilations</h2>
         {published.length === 0 ? (
           <p className="empty">

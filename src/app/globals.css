@@ -1189,3 +1189,78 @@ button.link {
   color: var(--muted);
   max-width: 52ch;
 }
+
+/* Part-to-whole: oil against the rest of an economy.
+   Emphasis rather than two categorical hues — oil is the question being
+   asked and the rest is its context, which also means no second hue needs
+   validating across five skins. The 2px gap between the segments is the
+   surface showing through, so neighbours read as distinct without a stroke. */
+.split {
+  display: block;
+  height: 0.6rem;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.split-oil {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-right: 2px solid var(--surface);
+  border-radius: 3px 0 0 3px;
+}
+
+.split-legend {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  margin: 0 0 0.7rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.split-legend .key {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 2px;
+}
+
+.split-legend .key.is-oil {
+  background: var(--accent);
+}
+
+.split-legend .key.is-rest {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+
+/* A supporting figure. Smaller than the hero on purpose: exactly one number
+   leads a page, and a second at the same size competes with it. */
+.stat {
+  margin: 1rem 0 1.2rem;
+}
+
+.stat-figure {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 1.9rem;
+  line-height: 1.1;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.stat-label {
+  margin: 0.3rem 0 0;
+  color: var(--muted);
+  max-width: 52ch;
+}

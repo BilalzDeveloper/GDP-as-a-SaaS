@@ -19,7 +19,7 @@ describe('benchmark reference data', () => {
     for (const iso3 of ['USA', 'CHN', 'DEU', 'JPN', 'IND', 'GBR']) {
       expect(covered.has(iso3), `${iso3} is missing`).toBe(true);
     }
-    expect(covered.size).toBeGreaterThanOrEqual(25);
+    expect(covered.size).toBeGreaterThanOrEqual(30);
   });
 
   it('pairs every GDP figure with a population figure', async () => {
@@ -61,10 +61,75 @@ describe('benchmark reference data', () => {
     // The honesty requirement, as a test. If someone flips this flag without
     // loading the official file, this fails.
     const [source] = await admin`
-      select verified, note from benchmark_source where code = 'indicative-2023'`;
+      select verified, note from benchmark_source where code = 'indicative'`;
     expect(source.verified).toBe(false);
     expect(source.note).toMatch(/NOT OFFICIAL DATA/);
     expect(source.note).toMatch(/load-benchmarks/);
+  });
+
+  it('holds a series, not a snapshot', async () => {
+    // Growth is derived from adjacent periods, so a single year would leave
+    // every growth column empty rather than wrong — which is harder to notice.
+    const periods = await admin`
+      select distinct period_label from benchmark_observation order by period_label`;
+    expect(periods.map((p) => p.period_label)).toEqual(['2021', '2022', '2023']);
+
+    const [gaps] = await admin`
+      select count(*)::int as n from (
+        select country_iso3, count(*)::int as years
+          from benchmark_observation
+         where indicator = 'gdp_current_usd'
+         group by country_iso3
+        having count(*) <> 3) short`;
+    expect(gaps.n).toBe(0);
+  });
+
+  it('pairs oil with non-oil for every GCC state and period', async () => {
+    // A share computed from one of the two would be silently wrong.
+    for (const iso3 of GCC) {
+      const rows = await admin`
+        select indicator, count(*)::int as n
+          from benchmark_observation
+         where country_iso3 = ${iso3}
+           and indicator in ('oil_gva_usd', 'non_oil_gva_usd')
+         group by indicator`;
+      expect(rows.length, `${iso3} is missing an oil indicator`).toBe(2);
+      for (const r of rows) expect(r.n).toBe(3);
+    }
+  });
+
+  it('keeps the oil split below GDP, where value added belongs', async () => {
+    // Oil and non-oil are value added at basic prices; GDP at market prices
+    // also carries taxes less subsidies on products, so their sum must sit
+    // below it. A pair that exceeded GDP would mean the two are not what the
+    // column comment says they are.
+    const rows = await admin`
+      select g.country_iso3, g.period_label,
+             g.value as gdp, (o.value + n.value) as gva
+        from benchmark_observation g
+        join benchmark_observation o
+          on o.country_iso3 = g.country_iso3 and o.period_label = g.period_label
+         and o.indicator = 'oil_gva_usd'
+        join benchmark_observation n
+          on n.country_iso3 = g.country_iso3 and n.period_label = g.period_label
+         and n.indicator = 'non_oil_gva_usd'
+       where g.indicator = 'gdp_current_usd'`;
+    expect(rows.length).toBe(GCC.length * 3);
+    for (const r of rows) {
+      expect(
+        Number(r.gva),
+        `${r.country_iso3} ${r.period_label}: GVA exceeds GDP`,
+      ).toBeLessThan(Number(r.gdp));
+    }
+  });
+
+  it('only carries the oil split for the GCC', async () => {
+    // No other economy in the set publishes it here, and inventing one would
+    // be a figure with no source at all.
+    const rows = await admin`
+      select distinct country_iso3 from benchmark_observation
+       where indicator in ('oil_gva_usd', 'non_oil_gva_usd')`;
+    expect(rows.map((r) => r.country_iso3).sort()).toEqual([...GCC].sort());
   });
 
   it('keeps the figures in the order of magnitude they claim', async () => {

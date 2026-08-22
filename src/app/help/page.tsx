@@ -1028,6 +1028,26 @@ export default async function HelpPage() {
           </p>
         </div>
         <p>
+          Thirty economies over three years, so the pages show growth as well
+          as size. A change here is <strong>nominal and in US dollars</strong>,
+          which mixes real growth, domestic inflation and the exchange rate: a
+          fall in dollar terms is not by itself a contraction, because a
+          currency can do it on its own.
+        </p>
+        <p>
+          <strong>The GCC states carry an oil split.</strong> Every Gulf
+          statistical office publishes oil and non-oil value added as separate
+          headlines, because the two behave nothing alike — one tracks a price
+          set outside the country, the other tracks the diversification the
+          region measures itself by — and a ranking by total GDP hides exactly
+          that. Those two figures are value added at{' '}
+          <strong>basic prices</strong>: they sum to gross value added, not to
+          GDP at market prices, which also carries taxes less subsidies on
+          products. The loader does not fetch them; there is no single
+          international series for the split, so it has to come from each
+          national office.
+        </p>
+        <p>
           The benchmarks are reference data, not your data: every organization
           sees the same set, no one can edit it from inside the application, and
           nothing in it is derived from anybody&apos;s compilation.
@@ -1095,9 +1115,10 @@ export default async function HelpPage() {
           </li>
           <li>
             <strong>The benchmark figures that ship are transcribed.</strong>{' '}
-            Approximate 2023 GDP and population for 25 economies, entered by
-            hand and marked unverified everywhere they appear. Load the
-            official series before relying on any comparison.
+            Approximate GDP and population for thirty economies over
+            2021&ndash;2023, plus the GCC oil split, entered by hand and marked
+            unverified everywhere they appear. Load the official series before
+            relying on any comparison.
           </li>
           <li>
             <strong>The sector accounts proper are not implemented.</strong>{' '}

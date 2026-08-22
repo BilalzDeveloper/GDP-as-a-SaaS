@@ -965,3 +965,38 @@ ranked horizontal bar is its form — drawn inside the table rather than beside
 it, so the figures and the shape are one object and no chart can disagree with
 its table. One hue, the skin's accent, because the bars encode magnitude and
 not identity; the values stay in text tokens.
+
+## D52 — A series and the oil split, both derived rather than stored
+**Decision:** the benchmark set covers thirty economies over 2021–2023, and
+carries oil and non-oil value added for the six GCC states (migration 0014).
+Year-on-year growth and the oil share are both computed from the stored levels
+rather than stored beside them.
+**Why a series.** A single year says how big an economy is and nothing about
+where it is going, which is the question an insights page exists to answer.
+Deriving growth from adjacent periods means a rate can never disagree with the
+levels it came from — the same reason growth rates inside a compilation are
+computed once at execution (D44) rather than in the page.
+**Why the oil split, and only for the GCC.** Every Gulf statistical office
+publishes oil and non-oil value added as separate headlines: one tracks a
+price set outside the country, the other tracks the diversification the region
+measures itself by, and a ranking by total GDP hides exactly that. No other
+economy in the set publishes it, and inventing one would be a figure with no
+source at all — a test asserts the split exists for the six and for nobody
+else.
+**They are value added, not GDP.** Oil plus non-oil sums to gross value added
+at basic prices; GDP at market prices also carries taxes less subsidies on
+products. The pages say so wherever the two appear, and a test asserts the sum
+sits below GDP for every state and period — a pair that exceeded it would mean
+the figures are not what the column comment claims.
+**The loader cannot fetch the split.** The World Bank series carry GDP and
+population; there is no single international series for oil and non-oil value
+added, so it has to come from each national office. The source note says this
+rather than leaving someone to discover it after running the loader.
+**Form: emphasis, not a categorical pair.** Part-to-whole across six economies
+is a stacked horizontal bar, and oil is the question being asked while the
+rest of the economy is its context — so the accent hue and a neutral, which is
+the emphasis form. It also means no second categorical hue needs validating
+across five skins in two modes.
+**One hero figure per page.** The country page briefly had two, the size of
+the economy and the oil share at the same weight, which made neither lead.
+The oil share is now a stat: smaller, still prominent, no longer competing.

@@ -958,3 +958,30 @@ authoritative and mean nothing.
 The rankings are bars drawn inside the table rather than beside it, in one hue
 — the skin's accent — because they encode magnitude, not identity. There is no
 chart that can disagree with its table, and no separate table view to find.
+
+## After the milestones — a benchmark series, and the GCC oil split
+
+The benchmark set held one year, which says how big an economy is and nothing
+about where it is going. It now covers thirty economies over 2021–2023, and
+the pages show year-on-year growth derived from adjacent periods rather than
+stored beside them — the same reasoning as D44 inside a compilation: a rate
+that is computed once cannot disagree with the levels it came from.
+
+The GCC states also carry oil and non-oil value added. Every Gulf statistical
+office publishes the two as separate headlines, because they behave nothing
+alike — one tracks a price set outside the country, the other tracks the
+diversification the region measures itself by — and a ranking by total GDP
+hides exactly that. The directional shape in the seeded set is the real one:
+2022 is the oil-price peak and 2023 falls back on price and OPEC+ cuts, so
+Saudi Arabia's dollar GDP shows −3.7% while its non-oil value added keeps
+climbing.
+
+Both figures are value added at basic prices and do not sum to GDP at market
+prices; the pages say so wherever they appear, and a test asserts the sum sits
+below GDP for every state and period. The World Bank loader cannot fetch the
+split — there is no single international series for it, so it has to come from
+each national office, and the source note says that rather than leaving
+someone to discover it afterwards. D52.
+
+`scripts/build-benchmark-seed.py` generates the 216-row CSV from compact
+tables, because nobody should hand-edit 216 rows to correct one figure.

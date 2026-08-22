@@ -54,6 +54,7 @@ function Ranking({
             <th className="num">GDP (US$)</th>
             <th className="bar-col">Relative size</th>
             <th className="num">Per head (US$)</th>
+            <th className="num">Growth</th>
             <th className="num">Population</th>
           </tr>
         </thead>
@@ -76,6 +77,12 @@ function Ranking({
                 />
               </td>
               <td className="num">{perHead(r.perCapita)}</td>
+              <td className={r.growthPercent !== null && r.growthPercent < 0
+                ? 'num is-negative' : 'num'}>
+                {r.growthPercent === null
+                  ? '—'
+                  : `${r.growthPercent > 0 ? '+' : ''}${r.growthPercent.toFixed(1)}%`}
+              </td>
               <td className="num">{people(r.population)}</td>
             </tr>
           ))}
@@ -156,6 +163,94 @@ export default async function InsightsPage() {
                     economies with very high output per head, which is the
                     figure a comparison by total GDP hides — the reason both
                     columns are here.
+                  </p>
+                </>
+              );
+            })()}
+
+            {(() => {
+              const withOil = gccRows(data.rows).filter((r) => r.oil !== null);
+              if (withOil.length === 0) return null;
+              const oilTotal = withOil.reduce((s, r) => s + r.oil!.oilGva, 0);
+              const nonOilTotal = withOil.reduce((s, r) => s + r.oil!.nonOilGva, 0);
+              const groupShare = (oilTotal / (oilTotal + nonOilTotal)) * 100;
+              return (
+                <>
+                  <h2>Oil and the rest of the economy</h2>
+                  <p>
+                    Every GCC statistical office publishes the oil and non-oil
+                    split as a headline, because the two behave nothing alike:
+                    one tracks a price set outside the country, the other tracks
+                    the diversification the region measures itself by. A ranking
+                    by total GDP hides exactly that.
+                  </p>
+                  {/* Part-to-whole across six economies, so a stacked
+                      horizontal bar. Emphasis rather than two categorical
+                      hues: oil is the question being asked, the rest of the
+                      economy is its context — which also means it needs no
+                      second hue validated across five skins. */}
+                  <Panel
+                    title={`Value added at basic prices · ${data.periodLabel}`}
+                    scroll
+                  >
+                    {/* Each entry is one element, so the swatch and its word
+                        are a unit rather than loose text beside a square. */}
+                    <p className="split-legend">
+                      <span className="legend-item">
+                        <span className="key is-oil" aria-hidden="true" />
+                        Oil
+                      </span>
+                      <span className="legend-item">
+                        <span className="key is-rest" aria-hidden="true" />
+                        Rest of the economy
+                      </span>
+                    </p>
+                    <table className="ranking">
+                      <thead>
+                        <tr>
+                          <th>Economy</th>
+                          <th className="num">Oil share</th>
+                          <th className="bar-col">Composition</th>
+                          <th className="num">Oil (US$)</th>
+                          <th className="num">Non-oil (US$)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...withOil]
+                          .sort((a, b) => b.oil!.oilShare - a.oil!.oilShare)
+                          .map((r) => (
+                            <tr key={r.iso3}>
+                              <td>
+                                <Link href={`/insights/${r.iso3}`}>
+                                  <span className="mono">{r.iso3}</span> {r.name}
+                                </Link>
+                              </td>
+                              <td className="num strong">
+                                {r.oil!.oilShare.toFixed(1)}%
+                              </td>
+                              <td className="bar-col">
+                                <span className="split">
+                                  <span
+                                    className="split-oil"
+                                    style={{ width: `${r.oil!.oilShare}%` }}
+                                    title={`${r.name}: oil ${r.oil!.oilShare.toFixed(1)}% of value added`}
+                                  />
+                                </span>
+                              </td>
+                              <td className="num">{usd(r.oil!.oilGva)}</td>
+                              <td className="num">{usd(r.oil!.nonOilGva)}</td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </Panel>
+                  <p className="muted">
+                    Across the six, oil is {groupShare.toFixed(1)}% of value
+                    added — {usd(oilTotal)} against {usd(nonOilTotal)}. These
+                    are value added at <strong>basic prices</strong>: the two
+                    sum to gross value added, not to GDP at market prices, which
+                    also carries taxes less subsidies on products. Do not
+                    subtract one from a GDP figure above.
                   </p>
                 </>
               );

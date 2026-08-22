@@ -898,7 +898,7 @@ INSIGHTS = plain_bar() + """
         <th class="bar-col">Relative size</th><th class="num">Per head (US$)</th>
         <th class="num">Population</th></tr></thead>
       <tbody>
-        <tr><td><span class="mono">SAU</span> Saudi Arabia</td><td class="num strong">1.07 tn</td><td class="bar-col"><span class="bar" style="width:100%"></span></td><td class="num">28,943</td><td class="num">36.9 m</td></tr>
+        <tr><td><span class="mono">SAU</span> Saudi Arabia</td><td class="num strong">1.07 tn</td><td class="bar-col"><span class="bar" style="width:100%"></span></td><td class="num">28,943</td><td class="num is-negative">-3.7%</td><td class="num">36.9 m</td></tr>
         <tr><td><span class="mono">ARE</span> United Arab Emirates</td><td class="num strong">504 bn</td><td class="bar-col"><span class="bar" style="width:47.2%"></span></td><td class="num">48,000</td><td class="num">10.5 m</td></tr>
         <tr><td><span class="mono">QAT</span> Qatar</td><td class="num strong">213 bn</td><td class="bar-col"><span class="bar" style="width:19.9%"></span></td><td class="num">78,889</td><td class="num">2.7 m</td></tr>
         <tr><td><span class="mono">KWT</span> Kuwait</td><td class="num strong">161 bn</td><td class="bar-col"><span class="bar" style="width:15.1%"></span></td><td class="num">37,442</td><td class="num">4.3 m</td></tr>
@@ -911,20 +911,47 @@ INSIGHTS = plain_bar() + """
     economies with very high output per head, which is the figure a comparison
     by total GDP hides &#8212; the reason both columns are here.</p>
 
+  <h2>Oil and the rest of the economy</h2>
+  <section class="panel">
+    <div class="panel-head"><h3>Value added at basic prices &#183; 2023</h3></div>
+    <div class="panel-scroll">
+      <p class="split-legend">
+        <span class="legend-item"><span class="key is-oil"></span>Oil</span>
+        <span class="legend-item"><span class="key is-rest"></span>Rest of the economy</span>
+      </p>
+      <table class="ranking">
+      <thead><tr><th>Economy</th><th class="num">Oil share</th>
+        <th class="bar-col">Composition</th><th class="num">Oil (US$)</th>
+        <th class="num">Non-oil (US$)</th></tr></thead>
+      <tbody>
+        <tr><td><span class="mono">KWT</span> Kuwait</td><td class="num strong">48.0%</td><td class="bar-col"><span class="split"><span class="split-oil" style="width:48%"></span></span></td><td class="num">72 bn</td><td class="num">78 bn</td></tr>
+        <tr><td><span class="mono">QAT</span> Qatar</td><td class="num strong">39.0%</td><td class="bar-col"><span class="split"><span class="split-oil" style="width:39%"></span></span></td><td class="num">78 bn</td><td class="num">122 bn</td></tr>
+        <tr><td><span class="mono">OMN</span> Oman</td><td class="num strong">35.1%</td><td class="bar-col"><span class="split"><span class="split-oil" style="width:35.1%"></span></span></td><td class="num">34 bn</td><td class="num">63 bn</td></tr>
+        <tr><td><span class="mono">SAU</span> Saudi Arabia</td><td class="num strong">30.0%</td><td class="bar-col"><span class="split"><span class="split-oil" style="width:30%"></span></span></td><td class="num">300 bn</td><td class="num">700 bn</td></tr>
+        <tr><td><span class="mono">ARE</span> United Arab Emirates</td><td class="num strong">29.8%</td><td class="bar-col"><span class="split"><span class="split-oil" style="width:29.8%"></span></span></td><td class="num">140 bn</td><td class="num">330 bn</td></tr>
+        <tr><td><span class="mono">BHR</span> Bahrain</td><td class="num strong">17.1%</td><td class="bar-col"><span class="split"><span class="split-oil" style="width:17.1%"></span></span></td><td class="num">7 bn</td><td class="num">34 bn</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+  <p class="muted">Across the six, oil is 30.4% of value added. These are value
+    added at <strong>basic prices</strong>: the two sum to gross value added,
+    not to GDP at market prices, which also carries taxes less subsidies on
+    products.</p>
+
   <h2>The largest economies</h2>
   <section class="panel">
     <div class="panel-head"><h3>Ranked by nominal GDP &#183; 2023</h3></div>
     <div class="panel-scroll"><table class="ranking">
       <thead><tr><th>Economy</th><th class="num">GDP (US$)</th>
         <th class="bar-col">Relative size</th><th class="num">Per head (US$)</th>
-        <th class="num">Population</th></tr></thead>
+        <th class="num">Growth</th><th class="num">Population</th></tr></thead>
       <tbody>
-        <tr><td><span class="mono">USA</span> United States of America</td><td class="num strong">27.36 tn</td><td class="bar-col"><span class="bar" style="width:100%"></span></td><td class="num">81,672</td><td class="num">335 m</td></tr>
-        <tr><td><span class="mono">CHN</span> China</td><td class="num strong">17.8 tn</td><td class="bar-col"><span class="bar" style="width:65%"></span></td><td class="num">12,621</td><td class="num">1,410 m</td></tr>
-        <tr><td><span class="mono">DEU</span> Germany</td><td class="num strong">4.46 tn</td><td class="bar-col"><span class="bar" style="width:16.3%"></span></td><td class="num">52,734</td><td class="num">84.5 m</td></tr>
-        <tr><td><span class="mono">JPN</span> Japan</td><td class="num strong">4.21 tn</td><td class="bar-col"><span class="bar" style="width:15.4%"></span></td><td class="num">33,839</td><td class="num">124.5 m</td></tr>
-        <tr><td><span class="mono">IND</span> India</td><td class="num strong">3.55 tn</td><td class="bar-col"><span class="bar" style="width:13%"></span></td><td class="num">2,484</td><td class="num">1,429 m</td></tr>
-        <tr><td><span class="mono">GBR</span> United Kingdom</td><td class="num strong">3.34 tn</td><td class="bar-col"><span class="bar" style="width:12.2%"></span></td><td class="num">48,902</td><td class="num">68.3 m</td></tr>
+        <tr><td><span class="mono">USA</span> United States of America</td><td class="num strong">27.36 tn</td><td class="bar-col"><span class="bar" style="width:100%"></span></td><td class="num">81,672</td><td class="num">+6.3%</td><td class="num">335 m</td></tr>
+        <tr><td><span class="mono">CHN</span> China</td><td class="num strong">17.8 tn</td><td class="bar-col"><span class="bar" style="width:65%"></span></td><td class="num">12,621</td><td class="num is-negative">-0.5%</td><td class="num">1,410 m</td></tr>
+        <tr><td><span class="mono">DEU</span> Germany</td><td class="num strong">4.46 tn</td><td class="bar-col"><span class="bar" style="width:16.3%"></span></td><td class="num">52,734</td><td class="num">+9.1%</td><td class="num">84.5 m</td></tr>
+        <tr><td><span class="mono">JPN</span> Japan</td><td class="num strong">4.21 tn</td><td class="bar-col"><span class="bar" style="width:15.4%"></span></td><td class="num">33,839</td><td class="num is-negative">-1.0%</td><td class="num">124.5 m</td></tr>
+        <tr><td><span class="mono">IND</span> India</td><td class="num strong">3.55 tn</td><td class="bar-col"><span class="bar" style="width:13%"></span></td><td class="num">2,484</td><td class="num">+4.7%</td><td class="num">1,429 m</td></tr>
+        <tr><td><span class="mono">GBR</span> United Kingdom</td><td class="num strong">3.34 tn</td><td class="bar-col"><span class="bar" style="width:12.2%"></span></td><td class="num">48,902</td><td class="num">+8.1%</td><td class="num">68.3 m</td></tr>
         <tr><td><span class="mono">SAU</span> Saudi Arabia</td><td class="num strong">1.07 tn</td><td class="bar-col"><span class="bar" style="width:3.9%"></span></td><td class="num">28,943</td><td class="num">36.9 m</td></tr>
       </tbody>
     </table></div>

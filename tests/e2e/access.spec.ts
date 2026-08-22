@@ -251,6 +251,35 @@ test.describe('insights', () => {
       await expect(world.locator('tbody tr')).toHaveCount(20);
     });
 
+  test('shows growth, which needs more than one period', async ({ page }) => {
+    await signUp(page, `insights-growth-${runId()}@nso.test`);
+    await page.goto('/insights');
+    const world = page.locator('.panel', { hasText: 'Ranked by nominal GDP' });
+    // Saudi Arabia fell in dollar terms in 2023 on lower oil; the sign has to
+    // survive the round trip, because a growth column that cannot show a
+    // negative is worse than none.
+    await expect(world.getByRole('row', { name: /Saudi Arabia/ })).toContainText('-');
+    await expect(world.getByRole('row', { name: /United States/ })).toContainText('+');
+  });
+
+  test('splits the GCC between oil and everything else', async ({ page }) => {
+    await signUp(page, `insights-oil-${runId()}@nso.test`);
+    await page.goto('/insights');
+    const oil = page.locator('.panel', { hasText: 'Value added at basic prices' });
+    await expect(oil).toBeVisible();
+    // Ranked by oil share, so the most and least diversified are the ends.
+    const first = oil.locator('tbody tr').first();
+    const last = oil.locator('tbody tr').last();
+    await expect(first).toContainText('Kuwait');
+    await expect(last).toContainText('Bahrain');
+    // Two series, so a legend, and it is not colour alone.
+    await expect(oil.getByText('Oil', { exact: true })).toBeVisible();
+    await expect(oil.getByText('Rest of the economy')).toBeVisible();
+    // The figures are value added, and the page must not invite a subtraction
+    // from GDP at market prices.
+    await expect(page.getByText(/sum to gross value added, not to GDP/)).toBeVisible();
+  });
+
   test('a country page puts the benchmark beside your own compilations',
     async ({ page }) => {
       await signUp(page, `insights-country-${runId()}@nso.test`);
@@ -261,6 +290,14 @@ test.describe('insights', () => {
       // A fresh account has published nothing, and the page says so rather
       // than showing an empty table.
       await expect(page.getByText(/No run of yours has been published/)).toBeVisible();
+
+      // The series, and exactly one hero figure on the page — a second at the
+      // same size competes with the first.
+      const series = page.locator('.panel', { hasText: 'Relative size' });
+      await expect(series.locator('tbody tr')).toHaveCount(3);
+      await expect(page.locator('.hero-figure')).toHaveCount(1);
+      // Saudi Arabia publishes an oil split, so the stat is there too.
+      await expect(page.locator('.stat-figure')).toContainText('%');
     });
 
   test('an unknown country is a 404, not an empty page', async ({ page }) => {
