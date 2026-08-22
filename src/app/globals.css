@@ -1130,3 +1130,62 @@ button.link {
 .skin-actions {
   margin-bottom: 2rem;
 }
+
+/* -----------------------------------------------------------------------------
+   Insights — rankings and the hero figure
+   -------------------------------------------------------------------------- */
+/* One measure across many named economies is a bar chart's job, and a ranked
+   horizontal bar is its form. The bar is drawn inside the table rather than
+   beside it, so the figures and the shape are one object: there is no chart
+   that can disagree with its table, and no separate table view to go and find.
+
+   One hue — the skin's accent — because the bars encode magnitude, not
+   identity. Every number stays in a text token; a value written in the data
+   colour is the commonest way a chart stops being readable. */
+
+.ranking .bar-col {
+  width: 30%;
+  min-width: 7rem;
+}
+
+.ranking .bar {
+  display: block;
+  height: 0.6rem;
+  min-width: 2px;
+  background: var(--accent);
+  /* Rounded at the data end only: the baseline end stays square so the bar
+     reads as measured from zero rather than floating. */
+  border-radius: 0 4px 4px 0;
+}
+
+.ranking a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.ranking a:hover {
+  text-decoration: underline;
+}
+
+/* The one number a page leads with. Sans rather than the display serif, which
+   at this size reads as decoration instead of data. */
+.hero {
+  margin: 1.4rem 0 1.8rem;
+}
+
+.hero-figure {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 3rem;
+  line-height: 1.05;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.hero-label {
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+  max-width: 52ch;
+}

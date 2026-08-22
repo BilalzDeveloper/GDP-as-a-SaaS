@@ -926,3 +926,42 @@ word and a stripe too.
 alone leaves a reader guessing which card is chosen and leaves the control
 unreachable through the accessibility tree — which is how the browser suite
 found it.
+
+## D51 — International benchmarks ship transcribed, and say so everywhere
+**Decision:** `benchmark_source` and `benchmark_observation` (migration 0013)
+hold published GDP and population for the twenty largest economies and the six
+GCC states, as system-wide reference data. `/insights` ranks them; a country
+page puts them beside the reader's own published runs.
+**Why the figures that ship are not official.** They were transcribed by hand
+because the environment this was built in has no network access. They are
+close to the published series and are not it, and an approximate figure
+presented as a statistic is the exact failure this application exists to
+prevent — so the source carries `verified = false`, the note begins "NOT
+OFFICIAL DATA", and every page showing them leads with a warning. A test
+asserts the flag is false and the note says why, so flipping it without
+loading the real file fails the suite. Same treatment as the transcribed
+classification seeds (D12).
+**And a way out.** `scripts/load-benchmarks.mjs` pulls World Bank
+`NY.GDP.MKTP.CD` and `SP.POP.TOTL`, writes them under a `worldbank` source and
+marks it verified. The pages prefer a verified source over an unverified one,
+so running it once removes every notice — the honesty is data-driven, not
+prose someone has to remember to delete.
+**Reference data, not tenant data.** These are public figures about countries,
+not anybody's pre-release estimate: one set, readable by every authenticated
+user, writable by no application role. The isolation suite asserts both — a
+tenant that could edit a benchmark could move the yardstick its own
+compilation is judged against.
+**Per capita is derived, never stored.** From the two stored indicators, so
+the three figures cannot disagree. The population unit's multiplier is applied
+rather than assumed, because the transcription is in thousands and the World
+Bank loader writes people.
+**The comparison refuses to subtract.** A compiled headline in national
+currency and a benchmark in US dollars are not comparable without an exchange
+rate for the period, which this application does not hold. The country page
+shows both and says plainly that it has not converted anything, rather than
+computing a difference that would look authoritative and mean nothing.
+**Form:** one measure across many named economies is a bar chart's job, and a
+ranked horizontal bar is its form — drawn inside the table rather than beside
+it, so the figures and the shape are one object and no chart can disagree with
+its table. One hue, the skin's accent, because the bars encode magnitude and
+not identity; the values stay in text tokens.

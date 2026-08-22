@@ -118,6 +118,31 @@ async function seedFlatTables() {
                     description = excluded.description,
                     sort_order = excluded.sort_order, kind = excluded.kind`;
   }
+
+  // International benchmarks (migration 0013). `verified` is deliberately not
+  // touched on conflict, for the same reason as ref_verified above: once the
+  // official file has been loaded, re-seeding must not quietly demote it back
+  // to the transcribed figures.
+  for (const s of read('benchmark-sources.csv')) {
+    await sql`insert into benchmark_source
+                (code, name, url, retrieved_at, verified, note)
+              values (${s.code}, ${s.name}, ${s.url || null},
+                      ${s.retrieved_at || null}, ${s.verified === 'true'},
+                      ${s.note})
+              on conflict (code) do update
+                set name = excluded.name, url = excluded.url,
+                    retrieved_at = excluded.retrieved_at, note = excluded.note`;
+  }
+  const benchmarks = read('benchmarks.csv');
+  for (const b of benchmarks) {
+    await sql`insert into benchmark_observation
+                (source_code, country_iso3, indicator, period_label, value, unit_code)
+              values (${b.source_code}, ${b.country_iso3}, ${b.indicator},
+                      ${b.period_label}, ${b.value}, ${b.unit_code})
+              on conflict (source_code, country_iso3, indicator, period_label)
+                do update set value = excluded.value, unit_code = excluded.unit_code`;
+  }
+  console.log(`  benchmarks: ${benchmarks.length} observations`);
 }
 
 async function seedClassification(spec) {

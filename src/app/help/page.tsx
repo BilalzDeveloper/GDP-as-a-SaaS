@@ -59,6 +59,7 @@ const CONTENTS = [
   ['audit', 'The audit trail'],
   ['refusals', 'When the platform refuses to compile'],
   ['messages', 'What the messages mean'],
+  ['insights', 'Insights and benchmarks'],
   ['appearance', 'Choosing how it looks'],
   ['limits', 'Known limitations'],
 ] as const;
@@ -998,6 +999,40 @@ export default async function HelpPage() {
           </table>
         </Panel>
 
+        <h2 id="insights">Insights and benchmarks</h2>
+        <p>
+          <Link href="/insights">Insights</Link> holds published GDP for the
+          largest economies and the six Gulf Cooperation Council states, ranked
+          by total and by output per head. A compilation is easier to trust
+          when it can be read beside the figures the world already has — and an
+          office compiling for the first time usually wants to know its total
+          is the right order of magnitude before anyone sees it.
+        </p>
+        <p>
+          Each country has its own page, which lists your organization&apos;s
+          published runs next to the benchmark. Read them as two facts about
+          the same economy, <strong>not as a difference</strong>: your headline
+          is in the currency and scale you compiled in, the benchmark is in US
+          dollars, and converting between them needs an exchange rate this
+          application does not hold and will not guess.
+        </p>
+        <div className="callout is-warning">
+          <p className="callout-title">The figures that ship are indicative</p>
+          <p style={{ marginBottom: 0 }}>
+            They were entered by hand so the pages have something to show, and
+            they are close to the published series without being it. Every page
+            using them says so. Run{' '}
+            <span className="mono">scripts/load-benchmarks.mjs</span> to replace
+            them with the World Bank series — the notice then disappears,
+            because it is no longer true.
+          </p>
+        </div>
+        <p>
+          The benchmarks are reference data, not your data: every organization
+          sees the same set, no one can edit it from inside the application, and
+          nothing in it is derived from anybody&apos;s compilation.
+        </p>
+
         <h2 id="appearance">Choosing how it looks</h2>
         <p>
           <Link href="/appearance">Appearance</Link> — in the bar at the top of
@@ -1057,6 +1092,12 @@ export default async function HelpPage() {
             <strong>The SDMX-CSV output has not been through a validator.</strong>{' '}
             It follows the specification as written; it has not been confirmed
             against an official conformance tool.
+          </li>
+          <li>
+            <strong>The benchmark figures that ship are transcribed.</strong>{' '}
+            Approximate 2023 GDP and population for 25 economies, entered by
+            hand and marked unverified everywhere they appear. Load the
+            official series before relying on any comparison.
           </li>
           <li>
             <strong>The sector accounts proper are not implemented.</strong>{' '}

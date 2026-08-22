@@ -181,6 +181,34 @@ describe('shared reference data is readable by every tenant', () => {
       ),
       /permission denied/,
     );
+    // The benchmarks are the same kind of table: public figures, seeded, and
+    // writable by no application role. A tenant that could edit them could
+    // move the yardstick its own compilation is judged against.
+    await expectDbError(
+      withRls(alice, { reason: 'attack: edit a benchmark figure' }, (tx) =>
+        tx.execute(sql`update benchmark_observation set value = 1
+                        where country_iso3 = 'USA'`),
+      ),
+      /permission denied/,
+    );
+    await expectDbError(
+      withRls(alice, { reason: 'attack: claim a source is verified' }, (tx) =>
+        tx.execute(sql`update benchmark_source set verified = true`),
+      ),
+      /permission denied/,
+    );
+  });
+
+  it('every tenant reads the same benchmark figures', async () => {
+    // Reference data, not tenant data: two organizations see one set.
+    const forAlice = (await withRls(alice, {}, (tx) =>
+      tx.execute(sql`select count(*)::int as n from benchmark_observation`),
+    )) as unknown as { n: number }[];
+    const forBob = (await withRls(bob, {}, (tx) =>
+      tx.execute(sql`select count(*)::int as n from benchmark_observation`),
+    )) as unknown as { n: number }[];
+    expect(forAlice[0].n).toBeGreaterThan(0);
+    expect(forBob[0].n).toBe(forAlice[0].n);
   });
 });
 

@@ -105,8 +105,9 @@ Working rules for sessions on this repo:
   prose: classification seeds are transcribed rather than downloaded (D12), the
   engine is internally consistent but has never been checked against published
   national accounts (D16), and the SDMX-CSV output has not been through a
-  validator (D31). Removing any of them needs network access this environment
-  does not have. Do not quietly drop the caveats.
+  validator (D31), and the international benchmark figures are transcribed
+  rather than downloaded (D51). Removing any of them needs network access this
+  environment does not have. Do not quietly drop the caveats.
 - **`supabase/migrations/*.sql` is the schema source of truth.** Never edit an
   applied migration; add a new numbered one. `src/db/schema.ts` is a partial
   Drizzle mirror — tenancy, audit and reference tables only, not the
@@ -126,6 +127,10 @@ Working rules for sessions on this repo:
 - **Audited writes need a reason, and the reason is read by people.** Anything
   passed to `withRls(claims, { reason })` shows up on the audit page — name
   what was acted on rather than quoting an id (D41).
+- **The benchmark figures are transcribed, not official** (D51). `verified` is
+  false on the seeded source, every page that shows them says so, and a test
+  asserts it. `scripts/load-benchmarks.mjs` loads the World Bank series and the
+  pages then prefer that source. Do not flip the flag by hand.
 - **A skin is a palette and nothing else** (D50). Five of them in
   `src/app/globals.css`, one block each via `light-dark()`, selected by
   `[data-skin]`/`[data-theme]` on any element — not just `:root`, so the

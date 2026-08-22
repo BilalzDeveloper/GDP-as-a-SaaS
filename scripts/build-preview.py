@@ -869,6 +869,72 @@ HELP = plain_bar() + """
 </main>"""
 
 
+INSIGHTS = plain_bar() + """
+<main>
+  <h1>Insights</h1>
+  <p class="lede">Published GDP for the largest economies and the Gulf
+    Cooperation Council, so a compilation can be read beside the figures the
+    world already has.</p>
+
+  <div class="callout is-warning">
+    <p class="callout-title">These figures are indicative, not official</p>
+    <p style="margin-bottom:0">They were entered by hand so these pages have
+      something to show, and they are close to the published series without
+      being it. Running <span class="mono">scripts/load-benchmarks.mjs</span>
+      replaces them with the World Bank series and removes this notice.</p>
+  </div>
+
+  <h2>The Gulf Cooperation Council</h2>
+  <div class="hero">
+    <p class="hero-figure">2.1 tn</p>
+    <p class="hero-label">Combined GDP of the six GCC states, 2023 &#183;
+      US$ 34,678 per head across 60.5 m people</p>
+  </div>
+
+  <section class="panel">
+    <div class="panel-head"><h3>GCC member states &#183; 2023</h3></div>
+    <div class="panel-scroll"><table class="ranking">
+      <thead><tr><th>Economy</th><th class="num">GDP (US$)</th>
+        <th class="bar-col">Relative size</th><th class="num">Per head (US$)</th>
+        <th class="num">Population</th></tr></thead>
+      <tbody>
+        <tr><td><span class="mono">SAU</span> Saudi Arabia</td><td class="num strong">1.07 tn</td><td class="bar-col"><span class="bar" style="width:100%"></span></td><td class="num">28,943</td><td class="num">36.9 m</td></tr>
+        <tr><td><span class="mono">ARE</span> United Arab Emirates</td><td class="num strong">504 bn</td><td class="bar-col"><span class="bar" style="width:47.2%"></span></td><td class="num">48,000</td><td class="num">10.5 m</td></tr>
+        <tr><td><span class="mono">QAT</span> Qatar</td><td class="num strong">213 bn</td><td class="bar-col"><span class="bar" style="width:19.9%"></span></td><td class="num">78,889</td><td class="num">2.7 m</td></tr>
+        <tr><td><span class="mono">KWT</span> Kuwait</td><td class="num strong">161 bn</td><td class="bar-col"><span class="bar" style="width:15.1%"></span></td><td class="num">37,442</td><td class="num">4.3 m</td></tr>
+        <tr><td><span class="mono">OMN</span> Oman</td><td class="num strong">108 bn</td><td class="bar-col"><span class="bar" style="width:10.1%"></span></td><td class="num">23,478</td><td class="num">4.6 m</td></tr>
+        <tr><td><span class="mono">BHR</span> Bahrain</td><td class="num strong">44 bn</td><td class="bar-col"><span class="bar" style="width:4.1%"></span></td><td class="num">29,333</td><td class="num">1.5 m</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+  <p class="muted">Ranked within the group. Bahrain and Qatar are small
+    economies with very high output per head, which is the figure a comparison
+    by total GDP hides &#8212; the reason both columns are here.</p>
+
+  <h2>The largest economies</h2>
+  <section class="panel">
+    <div class="panel-head"><h3>Ranked by nominal GDP &#183; 2023</h3></div>
+    <div class="panel-scroll"><table class="ranking">
+      <thead><tr><th>Economy</th><th class="num">GDP (US$)</th>
+        <th class="bar-col">Relative size</th><th class="num">Per head (US$)</th>
+        <th class="num">Population</th></tr></thead>
+      <tbody>
+        <tr><td><span class="mono">USA</span> United States of America</td><td class="num strong">27.36 tn</td><td class="bar-col"><span class="bar" style="width:100%"></span></td><td class="num">81,672</td><td class="num">335 m</td></tr>
+        <tr><td><span class="mono">CHN</span> China</td><td class="num strong">17.8 tn</td><td class="bar-col"><span class="bar" style="width:65%"></span></td><td class="num">12,621</td><td class="num">1,410 m</td></tr>
+        <tr><td><span class="mono">DEU</span> Germany</td><td class="num strong">4.46 tn</td><td class="bar-col"><span class="bar" style="width:16.3%"></span></td><td class="num">52,734</td><td class="num">84.5 m</td></tr>
+        <tr><td><span class="mono">JPN</span> Japan</td><td class="num strong">4.21 tn</td><td class="bar-col"><span class="bar" style="width:15.4%"></span></td><td class="num">33,839</td><td class="num">124.5 m</td></tr>
+        <tr><td><span class="mono">IND</span> India</td><td class="num strong">3.55 tn</td><td class="bar-col"><span class="bar" style="width:13%"></span></td><td class="num">2,484</td><td class="num">1,429 m</td></tr>
+        <tr><td><span class="mono">GBR</span> United Kingdom</td><td class="num strong">3.34 tn</td><td class="bar-col"><span class="bar" style="width:12.2%"></span></td><td class="num">48,902</td><td class="num">68.3 m</td></tr>
+        <tr><td><span class="mono">SAU</span> Saudi Arabia</td><td class="num strong">1.07 tn</td><td class="bar-col"><span class="bar" style="width:3.9%"></span></td><td class="num">28,943</td><td class="num">36.9 m</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+  <p class="muted">Nominal GDP converted at market exchange rates, which is
+    what makes it comparable across countries and also what makes it move when
+    a currency does.</p>
+</main>"""
+
+
 SCREENS = [
     ('landing', 'Landing', '/', LANDING,
      'Signed out. The three guarantees are the ones the brief calls '
@@ -912,6 +978,12 @@ SCREENS = [
      'A quarterly run benchmarked to the annual accounts by the Denton '
      'method. The indicator is kept beside the reconciled figure, because the '
      'ratio between them is how a compiler judges the indicator.'),
+    ('insights', 'Insights', '/insights', INSIGHTS,
+     'Published figures for the largest economies and the GCC, so a '
+     'compilation can be read beside them. The set that ships is transcribed '
+     'rather than downloaded, and the page says so until the official loader '
+     'has been run — the notice is driven by a flag on the source, not by '
+     'prose someone has to remember to delete.'),
     ('help', 'User guide', '/help', HELP,
      'The product documents itself, in the product. Public and linked from '
      'every page, because a compiler meets a refusal at the moment they are '
@@ -925,7 +997,7 @@ def build() -> str:
     rail = []
     frames = []
     groups = [('Getting in', 2), ('Setting up', 3), ('Compiling', 6),
-              ('Using it', 1)]
+              ('Using it', 2)]
     i = 0
     for label, count in groups:
         rail.append(f'<p class="rail-group">{label}</p>')

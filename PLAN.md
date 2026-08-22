@@ -927,3 +927,34 @@ the Contrast skin to AAA, and the same check runs in the unit suite, so a
 nudged hex value fails rather than ships. Severity stays chromatic in all five
 including Ink — desaturating it would make a diagnostic table unreadable to
 exactly the people a quiet skin is meant to help.
+
+## After the milestones — international benchmarks and the insights pages
+
+Published GDP and population for the twenty largest economies and the six GCC
+states, as system-wide reference data, with `/insights` ranking them and a page
+per country that puts the reader's own published runs alongside. Two uses: an
+office compiling for the first time wants to know its total is the right order
+of magnitude, and comparing a compiled figure with the published one is where
+an answer to D16 begins — though a headline agreeing proves far less than the
+components agreeing.
+
+**The figures that ship are transcribed, and the application never pretends
+otherwise.** This was built without network access, so they were entered by
+hand: close to the published series, not the published series. The source
+carries `verified = false`, its note opens "NOT OFFICIAL DATA", every page
+showing them leads with a warning, and a test asserts the flag so that flipping
+it without loading the real file fails the suite.
+`scripts/load-benchmarks.mjs` pulls the World Bank indicators and marks its own
+source verified; the pages prefer a verified source, so running it once removes
+every notice. The honesty is data-driven rather than prose someone has to
+remember to delete. D51.
+
+**The comparison deliberately refuses to subtract.** A compiled headline in
+national currency and a benchmark in US dollars need an exchange rate this
+application does not hold. The country page shows both and says it has not
+converted anything, rather than computing a difference that would look
+authoritative and mean nothing.
+
+The rankings are bars drawn inside the table rather than beside it, in one hue
+— the skin's accent — because they encode magnitude, not identity. There is no
+chart that can disagree with its table, and no separate table view to find.

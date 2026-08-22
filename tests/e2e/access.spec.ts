@@ -220,3 +220,68 @@ test.describe('appearance', () => {
     }
   });
 });
+
+test.describe('insights', () => {
+  test('needs an account, like every other tenant-aware page', async ({ page }) => {
+    await page.goto('/insights');
+    await expect(page).toHaveURL(/\/sign-in/);
+  });
+
+  test('ranks the economies and the GCC, and says the figures are indicative',
+    async ({ page }) => {
+      await signUp(page, `insights-${runId()}@nso.test`);
+      await page.goto('/insights');
+
+      // The honesty notice is the first thing on the page while the seeded
+      // transcription is in force. If this disappears without the official
+      // loader having run, the page is lying.
+      await expect(
+        page.getByText('These figures are indicative, not official'),
+      ).toBeVisible();
+
+      const gcc = page.locator('.panel', { hasText: 'GCC member states' });
+      for (const state of ['Saudi Arabia', 'United Arab Emirates', 'Qatar',
+                           'Kuwait', 'Oman', 'Bahrain']) {
+        await expect(gcc.getByRole('row', { name: new RegExp(state) })).toHaveCount(1);
+      }
+
+      const world = page.locator('.panel', { hasText: 'Ranked by nominal GDP' });
+      const first = world.locator('tbody tr').first();
+      await expect(first).toContainText('United States');
+      await expect(world.locator('tbody tr')).toHaveCount(20);
+    });
+
+  test('a country page puts the benchmark beside your own compilations',
+    async ({ page }) => {
+      await signUp(page, `insights-country-${runId()}@nso.test`);
+      await page.goto('/insights/SAU');
+      await expect(page.getByRole('heading', { name: 'Saudi Arabia' })).toBeVisible();
+      await expect(page.locator('.hero-figure')).toContainText('tn');
+
+      // A fresh account has published nothing, and the page says so rather
+      // than showing an empty table.
+      await expect(page.getByText(/No run of yours has been published/)).toBeVisible();
+    });
+
+  test('an unknown country is a 404, not an empty page', async ({ page }) => {
+    await signUp(page, `insights-404-${runId()}@nso.test`);
+    const response = await page.goto('/insights/ZZZ');
+    expect(response?.status()).toBe(404);
+  });
+
+  test('reaches the same figures from any skin', async ({ page }) => {
+    // The rankings are drawn with the skin's accent; a skin must not change
+    // what they say.
+    await signUp(page, `insights-skin-${runId()}@nso.test`);
+    await page.goto('/insights');
+    const before = await page.locator('.ranking').first().innerText();
+
+    await page.goto('/appearance');
+    await page.locator('input[name="skin"][value="contrast"]').check();
+    await page.getByRole('button', { name: 'Save appearance' }).click();
+    await expect(page.getByText('Saved')).toBeVisible();
+
+    await page.goto('/insights');
+    expect(await page.locator('.ranking').first().innerText()).toBe(before);
+  });
+});
