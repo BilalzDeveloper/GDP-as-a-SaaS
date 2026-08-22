@@ -35,6 +35,12 @@ def scope_selector(selector: str) -> str | None:
             return None  # the prefers-color-scheme duplicate
         elif part.startswith(':root['):
             out.append('.app' + part[len(':root'):])
+        elif part.startswith('['):
+            # A skin or mode selector. Not anchored to :root in the real
+            # stylesheet, so that a live sample can carry one; here the frame
+            # itself is the root, and samples inside it still need to match.
+            out.append('.app' + part)
+            out.append('.app ' + part)
         elif part == '*':
             out.append('.app, .app *')
         else:
@@ -987,6 +993,24 @@ TEMPLATE = '''<title>Compilation Platform Screens</title>
     --chrome-warn: #e8b451;
   }}
 
+  .skin-pick {{
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex: none;
+    font-size: 0.75rem;
+    color: var(--chrome-muted);
+  }}
+
+  .skin-pick select {{
+    background: var(--chrome-surface-2);
+    color: var(--chrome-fg);
+    border: 1px solid var(--chrome-line);
+    border-radius: 4px;
+    padding: 0.15rem 0.3rem;
+    font: inherit;
+  }}
+
   * {{ box-sizing: border-box; }}
 
   body {{
@@ -1174,6 +1198,16 @@ TEMPLATE = '''<title>Compilation Platform Screens</title>
     <div class="stage-bar">
       <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
       <span class="path" id="stage-path">nso-atlantis.gdp.example /</span>
+      <label class="skin-pick">
+        <span>Skin</span>
+        <select id="skin-select">
+          <option value="">Ledger</option>
+          <option value="slate">Slate</option>
+          <option value="parchment">Parchment</option>
+          <option value="contrast">Contrast</option>
+          <option value="ink">Ink</option>
+        </select>
+      </label>
       <button type="button" class="theme" id="theme-toggle" aria-pressed="false">Dark</button>
     </div>
     <div class="viewport" id="viewport">
@@ -1204,6 +1238,16 @@ TEMPLATE = '''<title>Compilation Platform Screens</title>
   }}
 
   rail.forEach((b) => b.addEventListener('click', () => show(b.dataset.screen)));
+
+  // The skins are the application's own, applied the way the application
+  // applies them: an attribute on the frame, nothing else.
+  const skinSelect = document.getElementById('skin-select');
+  skinSelect.addEventListener('change', () => {{
+    frames.forEach((f) => {{
+      if (skinSelect.value) f.setAttribute('data-skin', skinSelect.value);
+      else f.removeAttribute('data-skin');
+    }});
+  }});
 
   toggle.addEventListener('click', () => {{
     dark = !dark;

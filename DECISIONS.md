@@ -884,3 +884,45 @@ wants to see them separately; the coverage check works on the total either way.
 activity one. An industry and a sector are two groupings of the same
 producers: a consumer reading `S.13` as an activity code would be reading it
 wrong, and one summing the two cuts together would double-count.
+
+## D50 — Skins are a palette, chosen per browser, applied before first paint
+**Decision:** five skins — Ledger, Slate, Parchment, Contrast, Ink — each a
+set of token values in `src/app/globals.css`, chosen at `/appearance` and
+carried in a cookie the root layout reads.
+**A skin changes colour and nothing else.** It never moves a control, renames
+a button, hides a warning or alters a figure. Two people discussing a
+discrepancy over the phone have to be looking at the same page, and a
+"comfortable" skin that quietly dropped a diagnostic would be a correctness
+bug wearing a design hat. A browser test asserts that the text of a page is
+byte-identical across skins.
+**Written once each, with `light-dark()`.** The stylesheet previously carried
+its dark palette twice — a `prefers-color-scheme` block and a `[data-theme]`
+block — which is two copies to drift apart. Each token now holds both values
+and `color-scheme` decides, so a skin is one block and the mode selectors set
+nothing but `color-scheme`. A `@supports` fallback gives pre-2024 browsers the
+default palette in light rather than an unstyled page.
+**Selectors are not anchored to `:root`.** `[data-skin]` and `[data-theme]`
+work on any element, which is what lets the picker render each skin as a live
+sample of the real stylesheet rather than a drawing of one — the only way to
+show what a table of figures and a severity row actually look like in a
+palette before choosing it.
+**In a cookie, not a user column.** It is a property of the reader at this
+screen: the same person may want Contrast on a shared projector and Parchment
+on their own monitor. A cookie is read server-side and stamped on `<html>`, so
+the chosen skin is in the first byte of markup with no flash and no query; it
+works signed out; and it costs no migration, no audited write and no round
+trip to store something less accurate. The value is validated on read, so a
+tampered cookie yields the default.
+**Contrast is an accessibility feature, not a style.** It clears WCAG AAA
+(21:1) in both modes where the others clear AA, and `npm run check:contrast`
+holds every skin to its threshold across twelve foreground/background pairings
+in both modes. `tests/ui/contrast.test.ts` runs the same check, so a nudged
+hex value fails the suite rather than shipping.
+**Severity stays chromatic in every skin, Ink included.** Desaturating it
+would make a diagnostic table unreadable to exactly the people a quiet skin is
+meant to help. Colour is never the only signal regardless: severity carries a
+word and a stripe too.
+**The radio in each card is visible.** Signalling selection with a border
+alone leaves a reader guessing which card is chosen and leaves the control
+unreachable through the accessibility tree — which is how the browser suite
+found it.

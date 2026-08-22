@@ -38,7 +38,7 @@ three approaches with full audit trails and reproducible vintages.
   applied by the engine under a per-run treatment, with a half-specified
   adjustment refused rather than compiled.
 
-553 Vitest tests and 46 Playwright flows run in CI.
+558 Vitest tests and 52 Playwright flows run in CI.
 
 Three caveats worth knowing before relying on output, each marked in the data
 or the code rather than only here: the classification seeds are transcribed
@@ -122,6 +122,18 @@ python3 scripts/build-preview.py preview.html
 
 It reads `globals.css` at build time and re-scopes it, so the preview cannot
 drift from the application it is showing.
+
+## Appearance
+
+Five skins — Ledger, Slate, Parchment, Contrast and Ink — with a light or dark
+mode, chosen at **`/appearance`** and remembered per browser. A skin is a
+palette and nothing else: it never moves a control, renames a button or
+changes a figure.
+
+Each skin is one block of tokens using `light-dark()`, so there is no second
+copy of a palette to drift. `npm run check:contrast` holds every skin to WCAG
+AA across twelve pairings in both modes, and the Contrast skin to AAA;
+`tests/ui/contrast.test.ts` runs the same check in CI.
 
 ## User guide
 

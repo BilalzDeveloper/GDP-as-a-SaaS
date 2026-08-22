@@ -59,6 +59,7 @@ const CONTENTS = [
   ['audit', 'The audit trail'],
   ['refusals', 'When the platform refuses to compile'],
   ['messages', 'What the messages mean'],
+  ['appearance', 'Choosing how it looks'],
   ['limits', 'Known limitations'],
 ] as const;
 
@@ -996,6 +997,40 @@ export default async function HelpPage() {
             </tbody>
           </table>
         </Panel>
+
+        <h2 id="appearance">Choosing how it looks</h2>
+        <p>
+          <Link href="/appearance">Appearance</Link> — in the bar at the top of
+          every page — offers five palettes and a light or dark mode. Among
+          them:
+        </p>
+        <ul>
+          <li>
+            <strong>Contrast</strong>, with body text at 21:1 and heavier
+            rules, for low vision, bright rooms and projectors. It clears WCAG
+            AAA.
+          </li>
+          <li>
+            <strong>Parchment</strong>, warm and with the glare pulled back,
+            for compiling across a whole afternoon.
+          </li>
+          <li>
+            <strong>Ink</strong>, near-monochrome, for anyone who finds a
+            colour-coded interface noisy. Severity keeps its colours even here.
+          </li>
+        </ul>
+        <p>
+          A skin is a palette and nothing else. It never moves a control,
+          renames a button, hides a warning or changes a figure — two people
+          discussing a discrepancy over the phone must be looking at the same
+          page. Colour is never the only signal either: a warning carries a
+          word and a stripe as well as a hue.
+        </p>
+        <p>
+          The choice is remembered on the browser rather than against your
+          account, so the same person can use Contrast on a shared projector
+          and something quieter on their own monitor.
+        </p>
 
         <h2 id="limits">Known limitations</h2>
         <p>

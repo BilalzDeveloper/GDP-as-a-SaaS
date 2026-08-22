@@ -19,33 +19,68 @@
    rules, and prepend them to these stacks. See DECISIONS.md D32.
    =========================================================================== */
 
+/* ---------------------------------------------------------------------------
+   Skins
+   ---------------------------------------------------------------------------
+   A skin is a palette, nothing more: every component in this stylesheet reads
+   tokens and never a literal colour, so a skin changes the look without
+   touching a single rule below.
+
+   Each skin is written ONCE. `light-dark()` holds both values per token and
+   `color-scheme` decides which side applies, so there is no second copy of a
+   palette to drift out of step — which is what a media query plus an explicit
+   `[data-theme]` block cost before. The mode selectors below set nothing but
+   `color-scheme`.
+
+   Rules every skin obeys, because they are the difference between a skin and
+   a redesign:
+
+     * Body text on `--paper` clears WCAG AA (4.5:1) in both modes, and the
+       Contrast skin clears AAA (7:1). `npm run check:contrast` enforces this;
+       it is a test, not a guideline.
+     * Severity keeps its own scale. critical / warning / positive stay
+       chromatic and mutually distinguishable in every skin, including Ink —
+       desaturating them would make a diagnostic table unreadable to exactly
+       the people the skin is meant to help.
+     * Colour is never the only signal. Severity carries a word and a stripe
+       as well as a hue, so a skin cannot make a page ambiguous.
+
+   Skins are chosen at /appearance and remembered in a cookie, so the choice
+   applies before first paint and works signed out. See DECISIONS.md D50.
+
+   The selectors are deliberately NOT anchored to `:root`. `[data-skin]` and
+   `[data-theme]` work on any element, which is what lets the picker render a
+   live sample of each skin inside the page: a sample is the real stylesheet
+   under a different palette rather than a drawing of one.
+   =========================================================================== */
+
+/* Ledger — the default. Neutrals with a faint green-slate bias so they read
+   as chosen rather than defaulted, and one teal accent used sparingly. */
 :root {
-  /* Neutrals carry a faint green-slate bias so they read as chosen rather
-     than defaulted. */
-  --paper: #f7f8f7;
-  --surface: #ffffff;
-  --surface-2: #f1f3f2;
-  --ink: #131a19;
-  --ink-2: #3d4a48;
-  --muted: #5b6866;
-  --line: #dde2e0;
-  --line-strong: #c4ccc9;
+  color-scheme: light dark;
 
-  /* One accent, used sparingly. */
-  --accent: #0b5b57;
-  --accent-hover: #084440;
-  --accent-fg: #ffffff;
-  --accent-wash: #e8f1f0;
+  --paper: light-dark(#f7f8f7, #0e1413);
+  --surface: light-dark(#ffffff, #151d1c);
+  --surface-2: light-dark(#f1f3f2, #1b2422);
+  --ink: light-dark(#131a19, #e7edeb);
+  --ink-2: light-dark(#3d4a48, #b8c4c1);
+  --muted: light-dark(#5b6866, #8fa09c);
+  --line: light-dark(#dde2e0, #26302e);
+  --line-strong: light-dark(#c4ccc9, #38443f);
 
-  /* Severity is its own scale and never doubles as emphasis. */
-  --critical: #a3241f;
-  --critical-wash: #fbeceb;
-  --warning: #8a5a08;
-  --warning-wash: #fbf3e4;
-  --positive: #1f6b3a;
-  --positive-wash: #eaf4ed;
-  --neutral-chip: #4a5a72;
-  --neutral-chip-wash: #eef1f5;
+  --accent: light-dark(#0b5b57, #4ec5b8);
+  --accent-hover: light-dark(#084440, #6ad6c9);
+  --accent-fg: light-dark(#ffffff, #06201e);
+  --accent-wash: light-dark(#e8f1f0, #12302d);
+
+  --critical: light-dark(#a3241f, #f08a80);
+  --critical-wash: light-dark(#fbeceb, #341917);
+  --warning: light-dark(#8a5a08, #e0ab52);
+  --warning-wash: light-dark(#fbf3e4, #31260f);
+  --positive: light-dark(#1f6b3a, #79c98f);
+  --positive-wash: light-dark(#eaf4ed, #14291b);
+  --neutral-chip: light-dark(#4a5a72, #9db0c9);
+  --neutral-chip-wash: light-dark(#eef1f5, #1d2530);
 
   --radius: 4px;
   --radius-lg: 6px;
@@ -58,56 +93,131 @@
     Consolas, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --paper: #0e1413;
-    --surface: #151d1c;
-    --surface-2: #1b2422;
-    --ink: #e7edeb;
-    --ink-2: #b8c4c1;
-    --muted: #8fa09c;
-    --line: #26302e;
-    --line-strong: #38443f;
+/* Slate — cool blue-grey neutrals and an indigo accent. The register most
+   public-sector and enterprise software is written in, for an office whose
+   other tools look like this. */
+[data-skin='slate'] {
+  --paper: light-dark(#eef2f8, #0d1117);
+  --surface: light-dark(#ffffff, #151b24);
+  --surface-2: light-dark(#e2e9f3, #1b2330);
+  --ink: light-dark(#111722, #e8ecf3);
+  --ink-2: light-dark(#394354, #b7c1d0);
+  --muted: light-dark(#586477, #8b97a9);
+  --line: light-dark(#d3dceb, #232c3a);
+  --line-strong: light-dark(#b3c0d4, #354052);
 
-    --accent: #4ec5b8;
-    --accent-hover: #6ad6c9;
-    --accent-fg: #06201e;
-    --accent-wash: #12302d;
-
-    --critical: #f08a80;
-    --critical-wash: #341917;
-    --warning: #e0ab52;
-    --warning-wash: #31260f;
-    --positive: #79c98f;
-    --positive-wash: #14291b;
-    --neutral-chip: #9db0c9;
-    --neutral-chip-wash: #1d2530;
-  }
+  --accent: light-dark(#2c4a94, #8fb0f5);
+  --accent-hover: light-dark(#1f3670, #a9c3f8);
+  --accent-fg: light-dark(#ffffff, #0b1730);
+  --accent-wash: light-dark(#e9eefb, #18233c);
 }
 
-:root[data-theme='dark'] {
-  --paper: #0e1413;
-  --surface: #151d1c;
-  --surface-2: #1b2422;
-  --ink: #e7edeb;
-  --ink-2: #b8c4c1;
-  --muted: #8fa09c;
-  --line: #26302e;
-  --line-strong: #38443f;
+/* Parchment — warm cream and umber, with the contrast pulled back a little.
+   For a compiler reading tables for hours rather than glancing at a
+   dashboard; the glare of white-on-white is the complaint this answers. */
+[data-skin='parchment'] {
+  --paper: light-dark(#f6f1e6, #1a1712);
+  --surface: light-dark(#fdfaf3, #221e18);
+  --surface-2: light-dark(#efe8d9, #2a251d);
+  --ink: light-dark(#241f17, #ece5d7);
+  --ink-2: light-dark(#4b4335, #c4bba8);
+  --muted: light-dark(#6b6152, #978c78);
+  --line: light-dark(#e0d7c4, #332d24);
+  --line-strong: light-dark(#c9bda4, #453d31);
 
-  --accent: #4ec5b8;
-  --accent-hover: #6ad6c9;
-  --accent-fg: #06201e;
-  --accent-wash: #12302d;
+  --accent: light-dark(#7a4419, #e0a976);
+  --accent-hover: light-dark(#5e3311, #ecb98d);
+  --accent-fg: light-dark(#fdfaf3, #241505);
+  --accent-wash: light-dark(#f3e6d6, #332314);
+}
 
-  --critical: #f08a80;
-  --critical-wash: #341917;
-  --warning: #e0ab52;
-  --warning-wash: #31260f;
-  --positive: #79c98f;
-  --positive-wash: #14291b;
-  --neutral-chip: #9db0c9;
-  --neutral-chip-wash: #1d2530;
+/* Contrast — maximum separation, for low vision, bright rooms and projectors.
+   Body text clears WCAG AAA in both modes, rules are heavier, and the washed
+   backgrounds behind severity are dropped in favour of solid borders. */
+[data-skin='contrast'] {
+  --paper: light-dark(#ffffff, #000000);
+  --surface: light-dark(#ffffff, #0a0a0a);
+  --surface-2: light-dark(#f0f0f0, #171717);
+  --ink: light-dark(#000000, #ffffff);
+  --ink-2: light-dark(#1a1a1a, #ededed);
+  --muted: light-dark(#404040, #c4c4c4);
+  --line: light-dark(#8a8a8a, #7a7a7a);
+  --line-strong: light-dark(#000000, #ffffff);
+
+  --accent: light-dark(#004a99, #7cc0ff);
+  --accent-hover: light-dark(#003570, #a3d3ff);
+  --accent-fg: light-dark(#ffffff, #001a33);
+  --accent-wash: light-dark(#e0ecf9, #001f3d);
+
+  /* Severity keeps its scale but is pushed to the same separation as the
+     body text, and the washes step further from the paper so a severity row
+     is unmistakable rather than merely tinted. */
+  --critical: light-dark(#8c0000, #ff9a90);
+  --critical-wash: light-dark(#ffe4e1, #380000);
+  --warning: light-dark(#6b4000, #ffc46b);
+  --warning-wash: light-dark(#fff0d4, #331f00);
+  --positive: light-dark(#00521f, #7ee39b);
+  --positive-wash: light-dark(#dcf3e3, #00280f);
+  --neutral-chip: light-dark(#2d3d54, #b9c9e0);
+  --neutral-chip-wash: light-dark(#e6ebf2, #101823);
+}
+
+/* Ink — near-monochrome. Everything structural is graphite; only severity
+   keeps its colour, because a diagnostic that reads as ordinary text is worse
+   than a colourful one. For anyone who finds a colour-coded interface noisy. */
+[data-skin='ink'] {
+  --paper: light-dark(#fafafa, #101010);
+  --surface: light-dark(#ffffff, #181818);
+  --surface-2: light-dark(#f0f0f0, #202020);
+  --ink: light-dark(#141414, #ededed);
+  --ink-2: light-dark(#3a3a3a, #bdbdbd);
+  --muted: light-dark(#5e5e5e, #949494);
+  --line: light-dark(#e0e0e0, #2a2a2a);
+  --line-strong: light-dark(#bdbdbd, #3d3d3d);
+
+  --accent: light-dark(#2f2f2f, #d6d6d6);
+  --accent-hover: light-dark(#141414, #f0f0f0);
+  --accent-fg: light-dark(#ffffff, #141414);
+  --accent-wash: light-dark(#ececec, #262626);
+}
+
+/* Mode. These set nothing but `color-scheme`: which half of every
+   `light-dark()` above resolves. Absent the attribute the root keeps
+   `light dark`, which follows the reader's operating system. */
+[data-theme='light'] {
+  color-scheme: light;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+/* A browser without `light-dark()` (pre-2024) resolves it to nothing, which
+   would leave every token unset. Give those readers the default skin in
+   light, which is legible and correct, rather than an unstyled page. */
+@supports not (color: light-dark(#000, #fff)) {
+  :root {
+    --paper: #f7f8f7;
+    --surface: #ffffff;
+    --surface-2: #f1f3f2;
+    --ink: #131a19;
+    --ink-2: #3d4a48;
+    --muted: #5b6866;
+    --line: #dde2e0;
+    --line-strong: #c4ccc9;
+    --accent: #0b5b57;
+    --accent-hover: #084440;
+    --accent-fg: #ffffff;
+    --accent-wash: #e8f1f0;
+    --critical: #a3241f;
+    --critical-wash: #fbeceb;
+    --warning: #8a5a08;
+    --warning-wash: #fbf3e4;
+    --positive: #1f6b3a;
+    --positive-wash: #eaf4ed;
+    --neutral-chip: #4a5a72;
+    --neutral-chip-wash: #eef1f5;
+  }
 }
 
 * {
@@ -814,4 +924,209 @@ button.link {
   color: var(--accent);
   font-size: 0.85rem;
   font-variant-numeric: tabular-nums;
+}
+
+/* -----------------------------------------------------------------------------
+   The appearance picker
+   -------------------------------------------------------------------------- */
+/* The samples are the real stylesheet under a different palette rather than a
+   drawing of one — `data-skin` and `data-theme` cascade to a div exactly as
+   they do to <html> — so what a reader previews is what they get. */
+
+.skin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.6rem;
+}
+
+.skin-choice {
+  display: block;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  padding: 0.9rem;
+  cursor: pointer;
+}
+
+.skin-choice:hover {
+  border-color: var(--line-strong);
+}
+
+/* The selected card is outlined rather than filled: a fill would recolour the
+   samples it contains, which are the whole point of the card. */
+.skin-choice:has(input:checked) {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.skin-choice:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The radio stays visible. Hiding it and signalling selection with a border
+   alone leaves a reader guessing which card is chosen — and leaves the
+   control unreachable to anything driving the page by its accessibility
+   tree. */
+.skin-choice input {
+  accent-color: var(--accent);
+  margin: 0;
+}
+
+.skin-choice-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.7rem;
+}
+
+.skin-choice-name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  color: var(--ink);
+}
+
+.skin-choice-head > input {
+  margin-right: 0.1rem;
+}
+
+.skin-choice-note {
+  display: block;
+  margin-top: 0.7rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.skin-samples {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.skin-sample {
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  font-size: 0.7rem;
+}
+
+.skin-sample-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  padding: 0.3rem 0.45rem;
+}
+
+.skin-sample-bar .mark {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-radius: 2px;
+  padding: 0.05rem 0.28rem;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.03em;
+}
+
+.skin-sample-mode {
+  color: var(--muted);
+  font-size: 0.6rem;
+}
+
+.skin-sample-body {
+  padding: 0.45rem;
+}
+
+.skin-sample table {
+  width: 100%;
+  border-collapse: collapse;
+  /* Fixed, so the figure column keeps its width and the industry name is the
+     thing that truncates. A clipped number would misrepresent the very thing
+     the sample exists to show. */
+  table-layout: fixed;
+}
+
+.skin-sample col.name {
+  width: 58%;
+}
+
+.skin-sample th,
+.skin-sample td {
+  border-bottom: 1px solid var(--line);
+  padding: 0.2rem 0.15rem;
+  text-align: left;
+}
+
+.skin-sample th {
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 0.62rem;
+}
+
+.skin-sample .num {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  /* The sample is a thumbnail; a clipped figure would misrepresent how the
+     real table sets numbers. */
+  white-space: nowrap;
+  font-size: 0.66rem;
+}
+
+.skin-sample th:first-child,
+.skin-sample td:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.skin-sample .strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.skin-sample .mono {
+  font-family: var(--font-mono);
+  color: var(--muted);
+}
+
+.skin-sample-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.45rem;
+}
+
+.skin-sample-pills .pill {
+  font-size: 0.58rem;
+  padding: 0.05rem 0.3rem;
+}
+
+.skin-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.2rem;
+  margin-bottom: 0.8rem;
+}
+
+.skin-mode span {
+  white-space: nowrap;
+}
+
+.skin-mode {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+}
+
+.skin-actions {
+  margin-bottom: 2rem;
 }

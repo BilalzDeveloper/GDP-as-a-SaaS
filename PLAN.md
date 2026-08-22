@@ -897,3 +897,33 @@ sectors the uncovered producers belong to.
 Both exports gained a sector column of their own. Folding it into the activity
 column would invite a consumer to read S.13 as an industry, or to sum the two
 cuts and double-count.
+
+## After the milestones — skins
+
+Five palettes a reader can choose between, with a light or dark mode:
+**Ledger** (the default), **Slate**, **Parchment**, **Contrast** and **Ink**.
+Each exists for a reason rather than for variety — Contrast for low vision and
+projectors, Parchment for an afternoon of reading, Ink for anyone who finds a
+colour-coded interface noisy. D50.
+
+The interesting constraint is what a skin may not do. It changes colour and
+nothing else: no control moves, no button is renamed, no warning is hidden, no
+figure changes. Two people discussing a discrepancy over the phone have to be
+looking at the same page, and a browser test asserts the text of a page is
+identical across skins.
+
+Two things fell out of doing it properly. The stylesheet had carried its dark
+palette twice — once under `prefers-color-scheme`, once under `[data-theme]` —
+and `light-dark()` collapses that to one definition per token, so a skin is a
+single block and the mode selectors set nothing but `color-scheme`. And
+because the selectors are not anchored to `:root`, the picker renders each
+skin as a live sample of the real stylesheet rather than a drawing of one:
+what a reader previews is a table of figures and a severity row in that
+palette, which is the only question worth asking before choosing.
+
+The accessibility claims are enforced. `npm run check:contrast` holds every
+skin to WCAG AA across twelve foreground/background pairings in both modes and
+the Contrast skin to AAA, and the same check runs in the unit suite, so a
+nudged hex value fails rather than ships. Severity stays chromatic in all five
+including Ink — desaturating it would make a diagnostic table unreadable to
+exactly the people a quiet skin is meant to help.

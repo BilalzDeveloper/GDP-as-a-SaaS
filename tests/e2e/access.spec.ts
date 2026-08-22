@@ -143,3 +143,80 @@ test.describe('the user guide', () => {
     await expect(page.getByRole('button', { name: 'Sign out' })).toHaveCount(0);
   });
 });
+
+test.describe('appearance', () => {
+  const root = (page: import('@playwright/test').Page) =>
+    page.locator('html');
+
+  test('defaults to the base skin following the system', async ({ page }) => {
+    // No attributes at all: the bare `:root` palette, and `color-scheme:
+    // light dark` so the reader's operating system decides the mode.
+    await page.goto('/appearance');
+    await expect(root(page)).not.toHaveAttribute('data-skin', /./);
+    await expect(root(page)).not.toHaveAttribute('data-theme', /./);
+  });
+
+  test('a chosen skin is stamped on the document, not applied by script',
+    async ({ page }) => {
+      await page.goto('/appearance');
+      await page.locator('input[name="skin"][value="parchment"]').check();
+      await page.locator('input[name="mode"][value="dark"]').check();
+      await page.getByRole('button', { name: 'Save appearance' }).click();
+
+      await expect(page.getByText('Saved')).toBeVisible();
+      await expect(root(page)).toHaveAttribute('data-skin', 'parchment');
+      await expect(root(page)).toHaveAttribute('data-theme', 'dark');
+    });
+
+  test('the choice follows the reader to every page and survives a reload',
+    async ({ page }) => {
+      await page.goto('/appearance');
+      await page.locator('input[name="skin"][value="contrast"]').check();
+      await page.getByRole('button', { name: 'Save appearance' }).click();
+      await expect(page.getByText('Saved')).toBeVisible();
+
+      await page.goto('/help');
+      await expect(root(page)).toHaveAttribute('data-skin', 'contrast');
+      await page.reload();
+      await expect(root(page)).toHaveAttribute('data-skin', 'contrast');
+      // And on a page behind the sign-in wall's redirect, too.
+      await page.goto('/sign-in');
+      await expect(root(page)).toHaveAttribute('data-skin', 'contrast');
+    });
+
+  test('a tampered cookie falls back to the default rather than breaking',
+    async ({ page, context }) => {
+      // The value is reader-supplied text. It is validated on read, so the
+      // worst a bad one can do is nothing.
+      await context.addCookies([
+        { name: 'skin', value: 'not-a-skin', url: 'http://127.0.0.1:3211' },
+        { name: 'mode', value: '"><script>', url: 'http://127.0.0.1:3211' },
+      ]);
+      await page.goto('/help');
+      await expect(root(page)).not.toHaveAttribute('data-skin', /./);
+      await expect(root(page)).not.toHaveAttribute('data-theme', /./);
+      await expect(page.getByRole('heading', { name: 'User guide' })).toBeVisible();
+    });
+
+  test('changes the palette and nothing else', async ({ page }) => {
+    // A skin must not move a control or change a word: two people discussing
+    // a figure over the phone have to be looking at the same page.
+    await page.goto('/help');
+    const before = await page.locator('main').innerText();
+
+    await page.goto('/appearance');
+    await page.locator('input[name="skin"][value="ink"]').check();
+    await page.getByRole('button', { name: 'Save appearance' }).click();
+    await expect(page.getByText('Saved')).toBeVisible();
+
+    await page.goto('/help');
+    expect(await page.locator('main').innerText()).toBe(before);
+  });
+
+  test('offers every skin the stylesheet defines', async ({ page }) => {
+    await page.goto('/appearance');
+    for (const skin of ['ledger', 'slate', 'parchment', 'contrast', 'ink']) {
+      await expect(page.locator(`input[name="skin"][value="${skin}"]`)).toHaveCount(1);
+    }
+  });
+});

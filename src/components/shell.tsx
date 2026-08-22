@@ -35,6 +35,7 @@ export function IdentityBar({
           {email && <span className="mono">{email}</span>}
           {/* Reachable from every page, signed in or not: someone stuck on a
               validation message should not have to go looking. */}
+          <Link href="/appearance">Appearance</Link>
           <Link href="/help">Help</Link>
           {email && (
             <form action={signOut}>

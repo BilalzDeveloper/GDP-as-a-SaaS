@@ -126,6 +126,12 @@ Working rules for sessions on this repo:
 - **Audited writes need a reason, and the reason is read by people.** Anything
   passed to `withRls(claims, { reason })` shows up on the audit page — name
   what was acted on rather than quoting an id (D41).
+- **A skin is a palette and nothing else** (D50). Five of them in
+  `src/app/globals.css`, one block each via `light-dark()`, selected by
+  `[data-skin]`/`[data-theme]` on any element — not just `:root`, so the
+  picker can render live samples. Never let a skin change text, layout or a
+  figure. `npm run check:contrast` and `tests/ui/contrast.test.ts` hold every
+  skin to WCAG AA, and Contrast to AAA.
 - **The user guide is part of the product.** `src/app/help/page.tsx` is
   written for the compiler, not the maintainer, and states the application's
   real button names, codes and messages (D48). Behaviour changes update it in
