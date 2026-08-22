@@ -75,6 +75,9 @@ to close.
 - [`docs/end-to-end-tests.md`](docs/end-to-end-tests.md) — the Playwright
   suite: what is real in it, what is stubbed, and the two defects writing it
   found
+- [`docs/engagement-brief.md`](docs/engagement-brief.md) — a brief, not a
+  record: the prompt for a session planning worldwide collaboration,
+  competition and Rally Mode, and the hazards such a plan has to settle first
 - [`DEPLOYMENT.md`](DEPLOYMENT.md) — Supabase + Vercel setup (needs owner
   credentials)
 - [`CLAUDE.md`](CLAUDE.md) — the original project brief
