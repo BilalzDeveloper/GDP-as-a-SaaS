@@ -20,6 +20,13 @@ export interface SdmxObservation {
   transaction: string;
   /** Activity code, or '' where the measure is a total. */
   activity: string;
+  /**
+   * Institutional sector code, or '' where the measure is not a sector cut.
+   * Its own dimension rather than sharing ACTIVITY: an industry and a sector
+   * are two different groupings of the same producers, and a consumer that
+   * read S.13 as an activity code would be reading it wrong.
+   */
+  sector: string;
   /** 'current' | 'chain_linked' | 'previous_year'. */
   priceBasis: string;
   /**
@@ -56,6 +63,7 @@ const COLUMNS = [
   'TIME_PERIOD',
   'TRANSACTION',
   'ACTIVITY',
+  'SECTOR',
   'PRICE_BASIS',
   'BENCHMARKED',
   'MEASURE',
@@ -95,6 +103,7 @@ export function toSdmxCsv(
         o.timePeriod,
         o.transaction,
         o.activity,
+        o.sector,
         o.priceBasis,
         o.benchmarked ? 'true' : 'false',
         o.measure,

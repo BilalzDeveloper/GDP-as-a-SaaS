@@ -50,6 +50,7 @@ const CONTENTS = [
   ['file-format', 'Preparing your source file'],
   ['codes', 'Transaction codes'],
   ['sectors', 'Institutional sectors'],
+  ['sector-value-added', 'Value added by sector'],
   ['adjustments', 'FISIM and imputed rent'],
   ['results', 'Reading the results'],
   ['volumes', 'Volume measures and non-additivity'],
@@ -567,6 +568,45 @@ export default async function HelpPage() {
           only you know which.
         </p>
 
+        <h2 id="sector-value-added">Value added by sector</h2>
+        <p>
+          Every producer belongs both to an industry — what it makes — and to
+          an institutional sector — what kind of unit it is (SNA 2008 ch.4). If
+          your <code>P.1</code> and <code>P.2</code> rows carry a sector as
+          well as an activity, the run produces a second cut of value added
+          alongside the industry one, and general government or household value
+          added becomes a table you can publish.
+        </p>
+        <p>
+          Nothing extra to switch on: map the sector column, and if production
+          rows carry one the panel appears. Sub-sectors are kept at whatever
+          level of detail you file them, unlike final consumption where they
+          roll up.
+        </p>
+        <p>
+          <strong>It is value added, never GDP.</strong> Taxes and subsidies on
+          products are levied on products rather than on producers and cannot
+          be attributed to a sector (SNA 2008 §7.88), so there is no sector
+          figure to add them to and the platform compiles none.
+        </p>
+        <p>
+          <strong>It is computed before the FISIM and imputed-rent
+          adjustments.</strong> Those are attributed to industries — FISIM to
+          the industries consuming it, imputed rent to the housing industry —
+          and your data gives no sector to attribute them to. Rather than
+          guess, the sector cut is the unadjusted account, so it will not equal
+          the adjusted industry total when a compilation carries adjustments.
+        </p>
+        <p>
+          <strong>Partial coverage is reported.</strong> If some producers
+          carry no sector, the sector figures are shown with a note saying what
+          they total against the industry cut and by how much they fall short.
+          A partial breakdown is useful once it is labelled as one; published
+          as though it were complete it would understate whichever sectors the
+          uncovered producers belong to, and nothing on the face of the table
+          would show it.
+        </p>
+
         <h2 id="adjustments">FISIM and imputed rent</h2>
         <p>
           Both are adjustments the SNA describes but gives no ordinary
@@ -938,6 +978,14 @@ export default async function HelpPage() {
                 </td>
               </tr>
               <tr>
+                <td className="mono">sector_value_added_incomplete</td>
+                <td>
+                  Some producers carry no institutional sector, so the sector
+                  breakdown covers only part of the economy. See{' '}
+                  <a href="#sector-value-added">Value added by sector</a>.
+                </td>
+              </tr>
+              <tr>
                 <td className="mono">component_missing</td>
                 <td>
                   FISIM was allocated to an industry that is not in the
@@ -976,9 +1024,10 @@ export default async function HelpPage() {
             against an official conformance tool.
           </li>
           <li>
-            <strong>Value added by institutional sector is not compiled.</strong>{' '}
-            The sector dimension resolves final consumption; the sector accounts
-            proper are not implemented.
+            <strong>The sector accounts proper are not implemented.</strong>{' '}
+            Value added by institutional sector is compiled; the full sequence
+            of accounts by sector — allocation of primary income, secondary
+            distribution, saving and net lending — is not.
           </li>
         </ul>
 

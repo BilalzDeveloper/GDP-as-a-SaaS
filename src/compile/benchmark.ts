@@ -266,7 +266,7 @@ export async function benchmarkRun(
                 ${activityItemId}::uuid, 'current'::price_basis, true,
                 ${point.benchmarked})
         on conflict (run_id, period_id, approach, measure, activity_item_id,
-                     price_basis, benchmarked)
+                     sector_item_id, price_basis, benchmarked)
         do update set value = excluded.value
       `);
       if (point.extrapolated) extrapolated.add(point.periodLabel);

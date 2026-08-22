@@ -149,7 +149,7 @@ export async function computeDerived(
               'summary'::compilation_approach, ${measure}, null,
               'current'::price_basis, ${benchmarked}, ${value})
       on conflict (run_id, period_id, approach, measure, activity_item_id,
-                   price_basis, benchmarked)
+                   sector_item_id, price_basis, benchmarked)
       do update set value = excluded.value
     `);
   };

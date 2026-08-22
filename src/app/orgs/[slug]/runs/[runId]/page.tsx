@@ -10,6 +10,9 @@ export const dynamic = 'force-dynamic';
 
 type ResultRow = {
   id: string;
+  sector_code: string | null;
+  sector_name: string | null;
+  sector_item_id: string | null;
   period_label: string;
   approach: string;
   measure: string;
@@ -57,6 +60,7 @@ const MEASURE_LABEL: Record<string, string> = {
   gdp: 'GDP',
   total_gross_value_added: 'Σ gross value added',
   gross_value_added: 'Value added',
+  sector_gross_value_added: 'Value added by sector',
   output: 'Output',
   intermediate_consumption: 'Intermediate consumption',
   taxes_on_products: 'Taxes on products',
@@ -139,10 +143,13 @@ export default async function RunPage({
       select cr.id, p.label as period_label, cr.approach, cr.measure, cr.price_basis,
              cr.benchmarked,
              ci.code as activity_code, ci.name as activity_name,
-             cr.activity_item_id, cr.value
+             cr.activity_item_id,
+             si.code as sector_code, si.name as sector_name,
+             cr.sector_item_id, cr.value
         from compilation_result cr
         join reference_period p on p.id = cr.period_id
         left join classification_item ci on ci.id = cr.activity_item_id
+        left join classification_item si on si.id = cr.sector_item_id
        where cr.run_id = ${runId}::uuid
        order by p.start_date, cr.approach, ci.sort_order nulls first, cr.measure
     `)) as unknown as ResultRow[];
@@ -341,7 +348,7 @@ export default async function RunPage({
   const drilledName = drilled
     ? [
         MEASURE_LABEL[drilled.measure] ?? drilled.measure,
-        drilled.activity_name,
+        drilled.activity_name ?? drilled.sector_name,
         drilled.period_label,
       ]
         .filter(Boolean)
@@ -880,6 +887,70 @@ export default async function RunPage({
                       })}
                     </tbody>
                   </table>
+                </Panel>
+              );
+            })}
+
+            {/* The second cut of the same production account (D49). Value
+                added only: taxes on products are levied on products, not on
+                producers, so there is no sector GDP to show. */}
+            {periods.some((p) =>
+              results.some(
+                (r) =>
+                  r.period_label === p && r.measure === 'sector_gross_value_added',
+              ),
+            ) && <h2>Value added by institutional sector</h2>}
+            {periods.map((p) => {
+              const rows = results.filter(
+                (r) =>
+                  r.period_label === p &&
+                  r.measure === 'sector_gross_value_added' &&
+                  r.price_basis === 'current',
+              );
+              if (rows.length === 0) return null;
+              const incomplete = diagnostics.find(
+                (d) =>
+                  d.code === 'sector_value_added_incomplete' &&
+                  d.period_label === p,
+              );
+              return (
+                <Panel key={`sectors-${p}`} title={`${p} · current prices`} scroll>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Institutional sector</th>
+                        <th className="num">Value added</th>
+                        <th />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((r) => (
+                        <tr key={r.id}>
+                          <td>
+                            <span className="mono">{r.sector_code}</span>{' '}
+                            {r.sector_name}
+                          </td>
+                          <td
+                            className={
+                              r.value !== null && Number(r.value) < 0
+                                ? 'num strong is-negative'
+                                : 'num strong'
+                            }
+                          >
+                            {fmt(r.value)}
+                          </td>
+                          <td>
+                            <Sources row={r} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {incomplete && (
+                    <p className="muted" style={{ margin: '0.8rem 1rem 0' }}>
+                      {incomplete.message}
+                    </p>
+                  )}
                 </Panel>
               );
             })}

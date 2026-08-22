@@ -217,24 +217,28 @@ export async function executeRun(
           measure: string,
           value: number | null,
           activityItemId: string | null = null,
+          sectorItemId: string | null = null,
         ) => {
-          // price_basis is part of a result's identity (migration 0005), so it
-          // belongs in the conflict target as well as the row.
+          // price_basis is part of a result's identity (migration 0005), the
+          // sector since 0012, so both belong in the conflict target as well
+          // as the row.
           const written = (await tx.execute(sql`
             insert into compilation_result
               (org_id, run_id, period_id, approach, measure, activity_item_id,
-               price_basis, value)
+               sector_item_id, price_basis, value)
             values (${orgId}::uuid, ${runId}::uuid, ${periodId}::uuid,
                     ${approach}::compilation_approach, ${measure},
-                    ${activityItemId}::uuid, 'current'::price_basis, ${value})
+                    ${activityItemId}::uuid, ${sectorItemId}::uuid,
+                    'current'::price_basis, ${value})
             on conflict (run_id, period_id, approach, measure, activity_item_id,
-                         price_basis, benchmarked)
+                         sector_item_id, price_basis, benchmarked)
             do update set value = excluded.value
             returning id
           `)) as unknown as { id: string }[];
           resultsWritten++;
           await recordSources(
             written[0].id, periodId, approach, measure, activityItemId,
+            sectorItemId,
           );
         };
 
@@ -252,6 +256,7 @@ export async function executeRun(
           approach: string,
           measure: string,
           activityItemId: string | null,
+          sectorItemId: string | null,
         ) => {
           const periodRows = rowsByPeriod.get(periodId) ?? [];
           const contributing =
@@ -260,7 +265,9 @@ export async function executeRun(
                   periodRows,
                   approach as 'production' | 'expenditure' | 'income',
                 )
-              : contributingRows(periodRows, measure as Measure, activityItemId);
+              : contributingRows(
+                  periodRows, measure as Measure, activityItemId, sectorItemId,
+                );
 
           await tx.execute(
             sql`delete from result_source where result_id = ${resultId}::bigint`,
@@ -305,6 +312,15 @@ export async function executeRun(
           }
         }
 
+        // The same for institutional sectors, which the per-sector cut of
+        // value added is keyed on.
+        const sectorIdByCode = new Map<string, string>();
+        for (const row of observations) {
+          if (row.sectorCode && row.sectorItemId) {
+            sectorIdByCode.set(row.sectorCode, row.sectorItemId);
+          }
+        }
+
         for (const period of periods) {
           for (const problem of period.problems) {
             await writeDiagnostic(
@@ -343,6 +359,15 @@ export async function executeRun(
               period.periodId, 'production', MEASURE.subsidiesOnProducts,
               result.production.subsidiesOnProducts,
             );
+            for (const sector of result.production.bySector ?? []) {
+              // Value added only — there is no sector GDP to write, because
+              // taxes on products are not attributable to a sector (D49).
+              await writeResult(
+                period.periodId, 'production', MEASURE.sectorGrossValueAdded,
+                sector.grossValueAdded, null, sectorIdByCode.get(sector.code) ?? null,
+              );
+            }
+
             for (const industry of result.production.industries) {
               const activityId = activityIdByCode.get(industry.code) ?? null;
               await writeResult(

@@ -13,6 +13,7 @@ import type {
   Money,
   ProductionInput,
   ProductionResult,
+  SectorValueAdded,
 } from './types';
 import { approximatelyEqual, assertFinite, sum, sumBy } from './numeric';
 
@@ -225,12 +226,96 @@ export function computeProductionApproach(
   const gdp =
     totalGrossValueAdded + input.taxesOnProducts - input.subsidiesOnProducts;
 
+  const bySector = computeSectorValueAdded(input, diagnostics);
+
   return {
     industries: perIndustry,
+    bySector,
     totalGrossValueAdded,
     taxesOnProducts: input.taxesOnProducts,
     subsidiesOnProducts: input.subsidiesOnProducts,
     gdp,
     diagnostics,
   };
+}
+
+/**
+ * Gross value added by institutional sector. SNA 2008 ch.4: every producer
+ * belongs to an industry and to an institutional sector, so the production
+ * account can be summed either way from the same records. Chapter 14's supply
+ * and use tables present both cuts side by side.
+ *
+ * This is value added only, never GDP. Taxes and subsidies on products are
+ * levied on products rather than on producers and are not attributable to a
+ * sector (SNA 2008 §7.88), so there is no sector figure to add them to.
+ *
+ * Computed from the rows as supplied, BEFORE the FISIM and imputed-rent
+ * adjustments. Those are attributed to industries — FISIM to the industries
+ * consuming it, imputed rent to the housing industry — and the compilation
+ * gives no sector to attribute them to. Rather than guess, the sector cut is
+ * the unadjusted account and the coverage check below compares like with
+ * like.
+ */
+function computeSectorValueAdded(
+  input: ProductionInput,
+  diagnostics: Diagnostic[],
+): SectorValueAdded[] | undefined {
+  if (!input.institutionalSectors || input.institutionalSectors.length === 0) {
+    return undefined;
+  }
+
+  const bySector: SectorValueAdded[] = input.institutionalSectors.map((s) => {
+    assertFinite(s.output, `sector ${s.code} output`);
+    assertFinite(s.intermediateConsumption, `sector ${s.code} intermediateConsumption`);
+    return {
+      code: s.code,
+      output: s.output,
+      intermediateConsumption: s.intermediateConsumption,
+      grossValueAdded: grossValueAdded(s.output, s.intermediateConsumption),
+    };
+  });
+
+  // Does the sector cut cover the same producers as the industry cut? Compared
+  // against the industries AS SUPPLIED, because the adjustments applied above
+  // are in the industry figures and deliberately not in these.
+  //
+  // A partial sector breakdown published as though it were complete is the
+  // failure this guards against: it would understate whichever sectors the
+  // uncovered producers belong to, and nothing on the face of the table would
+  // show it.
+  const suppliedIndustryTotal = sumBy(
+    input.industries,
+    (i) => i.output - i.intermediateConsumption,
+  );
+  const sectorTotal = sumBy(bySector, (s) => s.grossValueAdded);
+  const gap = suppliedIndustryTotal - sectorTotal;
+  if (!approximatelyEqual(sectorTotal, suppliedIndustryTotal)) {
+    diagnostics.push({
+      code: 'sector_value_added_incomplete',
+      severity: 'warning',
+      message:
+        `Value added by institutional sector totals ${sectorTotal} against ` +
+        `${suppliedIndustryTotal} by industry, a difference of ${gap}. Some ` +
+        `producers carry no institutional sector, so the sector breakdown ` +
+        `covers only part of the economy and must not be read as a complete ` +
+        `account.`,
+      subject: 'institutionalSectors',
+    });
+  }
+
+  for (const sector of bySector) {
+    if (sector.grossValueAdded < 0) {
+      diagnostics.push({
+        code: 'negative_value_added',
+        severity: 'warning',
+        message:
+          `Institutional sector ${sector.code} has negative gross value added ` +
+          `(${sector.grossValueAdded}). Genuine in rare cases; usually a sign ` +
+          `or mapping error.`,
+        subject: sector.code,
+      });
+    }
+  }
+
+  return bySector;
 }

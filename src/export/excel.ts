@@ -27,6 +27,9 @@ export interface ExcelRow {
   measure: string;
   activityCode: string | null;
   activityName: string | null;
+  /** Set on the per-sector cut of value added; null on every other row. */
+  sectorCode: string | null;
+  sectorName: string | null;
   priceBasis: string;
   /** Unit code — not all measures share one; see src/export/service.ts. */
   unit: string;
@@ -75,6 +78,8 @@ export async function toExcelWorkbook(
       { header: 'Measure', key: 'measure', width: 30 },
       { header: 'Activity code', key: 'code', width: 14 },
       { header: 'Activity', key: 'activity', width: 40 },
+      { header: 'Sector', key: 'sectorCode', width: 10 },
+      { header: 'Sector name', key: 'sectorName', width: 30 },
       { header: 'Benchmarked', key: 'benchmarked', width: 13 },
       { header: 'Unit', key: 'unit', width: 12 },
       { header: 'Value', key: 'value', width: 18 },
@@ -87,6 +92,11 @@ export async function toExcelWorkbook(
         measure: row.measure,
         code: row.activityCode ?? '',
         activity: row.activityName ?? '',
+        // Its own pair of columns, not folded into the activity ones: an
+        // industry and an institutional sector are two groupings of the same
+        // producers, and a reader who summed them together would double-count.
+        sectorCode: row.sectorCode ?? '',
+        sectorName: row.sectorName ?? '',
         // Quarterly runs carry the indicator and the reconciled figure for
         // the same cell; without this column they would look like duplicates.
         benchmarked: row.benchmarked ? 'yes' : 'no',

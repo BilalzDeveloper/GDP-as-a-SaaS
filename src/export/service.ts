@@ -32,6 +32,8 @@ interface ResultRow {
   benchmarked: boolean;
   activity_code: string | null;
   activity_name: string | null;
+  sector_code: string | null;
+  sector_name: string | null;
   transaction_code: string | null;
   unit_code: string | null;
   value: string | null;
@@ -58,14 +60,16 @@ async function load(claims: RlsClaims, runId: string) {
       select p.label as period_label, cr.approach::text as approach, cr.measure,
              cr.price_basis::text as price_basis, cr.benchmarked,
              ci.code as activity_code, ci.name as activity_name,
+             si.code as sector_code, si.name as sector_name,
              null::text as transaction_code, null::text as unit_code,
              cr.value
         from compilation_result cr
         join reference_period p on p.id = cr.period_id
         left join classification_item ci on ci.id = cr.activity_item_id
+        left join classification_item si on si.id = cr.sector_item_id
        where cr.run_id = ${runId}::uuid
        order by p.start_date, cr.price_basis, cr.benchmarked, cr.approach,
-                ci.sort_order nulls first, cr.measure
+                ci.sort_order nulls first, si.sort_order nulls first, cr.measure
     `)) as unknown as ResultRow[];
 
     // The currency scale the run's figures are stated in. Needed because the
@@ -146,6 +150,7 @@ export async function exportSdmxCsv(
     timePeriod: r.period_label,
     transaction: r.transaction_code ?? '',
     activity: r.activity_code ?? '',
+    sector: r.sector_code ?? '',
     priceBasis: r.price_basis,
     benchmarked: r.benchmarked,
     unit: r.unit_code ?? unitFor(r.measure, currencyUnit),
@@ -202,6 +207,8 @@ export async function exportExcel(
     measure: r.measure,
     unit: unitFor(r.measure, data.currencyUnit),
     activityCode: r.activity_code,
+    sectorCode: r.sector_code,
+    sectorName: r.sector_name,
     activityName: r.activity_name,
     priceBasis: r.price_basis,
     benchmarked: r.benchmarked,

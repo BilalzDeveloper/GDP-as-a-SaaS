@@ -481,6 +481,24 @@ RUN = org_shell('runs') + '''
     </table></div>
   </section>
 
+  <h2>Value added by institutional sector</h2>
+  <section class="panel">
+    <div class="panel-head"><h3>2024 &#183; current prices</h3></div>
+    <div class="panel-scroll"><table>
+      <thead><tr><th>Institutional sector</th><th class="num">Value added</th><th></th></tr></thead>
+      <tbody>
+        <tr><td><span class="mono">S.11</span> Non-financial corporations</td><td class="num strong">71,204.85</td><td><a href="#">sources</a></td></tr>
+        <tr><td><span class="mono">S.12</span> Financial corporations</td><td class="num strong">8,432.30</td><td><a href="#">sources</a></td></tr>
+        <tr><td><span class="mono">S.13</span> General government</td><td class="num strong">14,905.20</td><td><a href="#">sources</a></td></tr>
+        <tr><td><span class="mono">S.14</span> Households</td><td class="num strong">19,660.75</td><td><a href="#">sources</a></td></tr>
+        <tr><td><span class="mono">S.15</span> NPISH</td><td class="num strong">1,544.65</td><td><a href="#">sources</a></td></tr>
+      </tbody>
+    </table></div>
+  </section>
+  <p class="muted">Value added only. Taxes on products are levied on products
+    rather than on producers and are not attributable to a sector, so there is
+    no sector GDP to show.</p>
+
   <h2>Source records &#8212; Final consumption expenditure &#183; 2024</h2>
   <section class="panel"><div class="panel-scroll"><table>
     <thead><tr><th>Transaction</th><th>Industry</th><th>Sector</th><th class="num">Value</th><th>Source file</th><th class="num">Row</th><th>As uploaded</th></tr></thead>

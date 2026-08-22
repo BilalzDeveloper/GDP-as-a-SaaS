@@ -866,3 +866,34 @@ It is public because it names no tenant and holds no figures, and someone
 evaluating the platform is exactly who needs it. Browser tests hold it to the
 application's real vocabulary, so a renamed code fails the suite rather than
 quietly making the guide wrong.
+
+## After the milestones — the second cut of the production account
+
+The sector dimension resolved final consumption; it did nothing for
+production. SNA 2008 ch.4 has every producer belonging both to an industry and
+to an institutional sector, and ch.14's supply and use tables present both
+cuts of the same records. General government value added is a table most
+offices publish and the industry cut cannot give.
+
+Where `P.1` and `P.2` rows carry a sector, a run now compiles value added by
+sector alongside the industry breakdown, with its own drill-down back to the
+observations behind each figure. Nothing extra to switch on: map the column
+and the panel appears. D49.
+
+Three things it deliberately does not do. It compiles no sector GDP — taxes on
+products are levied on products, not producers, and are not attributable to a
+sector (§7.88). It does not apply the FISIM and imputed-rent adjustments,
+which are attributed to industries and have no sector to go to; the coverage
+check therefore compares against the industries *as supplied*, so a
+compilation carrying FISIM does not acquire a phantom gap. And it does not
+roll sub-sectors up, unlike final consumption — an office filing S.1311 and
+S.1313 separately wants to see them separately.
+
+Partial coverage is published with a warning stating both totals and the
+difference, rather than withheld. A breakdown covering some producers is
+useful once labelled; published as complete it would understate whichever
+sectors the uncovered producers belong to.
+
+Both exports gained a sector column of their own. Folding it into the activity
+column would invite a consumer to read S.13 as an industry, or to sum the two
+cuts and double-count.

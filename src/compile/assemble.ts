@@ -15,6 +15,7 @@ import type {
   IncomeInput,
   IndustryInput,
   ProductionInput,
+  SectorProductionInput,
 } from '../engine';
 
 /** One observation, flattened to what the assembler needs. */
@@ -258,6 +259,48 @@ function consumptionFor(
     });
   }
   return total;
+}
+
+/**
+ * The same output and intermediate consumption rows, grouped by institutional
+ * sector instead of by activity (SNA 2008 ch.4).
+ *
+ * Only rows that carry a sector are included, and `S.1` is excluded: it is
+ * the whole economy rather than a sector of it, so counting it beside the
+ * real sectors would double the total. Where nothing carries a sector the
+ * result is undefined and the engine produces no sector cut at all.
+ *
+ * Sub-sectors are kept at the level of detail supplied rather than rolled up.
+ * Unlike final consumption — where a component must land on exactly one of
+ * three sectors — this is a presentational breakdown, and an office that
+ * files S.1311 and S.1313 separately wants to see them separately. The
+ * engine's coverage check works on the total either way.
+ */
+function assembleSectorProduction(
+  outputs: readonly ObservationRow[],
+  intermediates: readonly ObservationRow[],
+): SectorProductionInput[] | undefined {
+  const bySector = new Map<string, SectorProductionInput>();
+  const at = (code: string) => {
+    const existing = bySector.get(code) ?? {
+      code,
+      output: 0,
+      intermediateConsumption: 0,
+    };
+    bySector.set(code, existing);
+    return existing;
+  };
+
+  for (const row of outputs) {
+    if (row.sectorCode === null || row.sectorCode === 'S.1') continue;
+    at(row.sectorCode).output += row.value ?? 0;
+  }
+  for (const row of intermediates) {
+    if (row.sectorCode === null || row.sectorCode === 'S.1') continue;
+    at(row.sectorCode).intermediateConsumption += row.value ?? 0;
+  }
+
+  return bySector.size === 0 ? undefined : [...bySector.values()];
 }
 
 function checkUnits(
@@ -513,6 +556,7 @@ export function assemblePeriod(
         result.production = {
           outputValuation: 'basic',
           industries: [...byActivity.values()],
+          institutionalSectors: assembleSectorProduction(outputs, intermediates),
           taxesOnProducts: taxes,
           subsidiesOnProducts: subsidies ?? 0,
           // The engine applies these; the assembler only decides whether it

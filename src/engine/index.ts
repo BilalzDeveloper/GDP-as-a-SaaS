@@ -30,6 +30,8 @@ export type {
   OutputValuation,
   ProductionInput,
   ProductionResult,
+  SectorProductionInput,
+  SectorValueAdded,
 } from './types';
 
 export {

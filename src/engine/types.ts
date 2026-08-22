@@ -87,6 +87,25 @@ export interface ImputedRentInput {
   intermediateConsumption: Money;
 }
 
+/**
+ * The same producers grouped by institutional sector rather than by activity.
+ * SNA 2008 ch.4: every producer belongs to both an industry (what it makes)
+ * and an institutional sector (what kind of unit it is), so output and
+ * intermediate consumption can be summed either way from the same records.
+ *
+ * A separate type from `IndustryInput` deliberately. The fields are the same
+ * three, but calling a sector an industry in the type that statisticians will
+ * read is exactly the kind of vocabulary slip this codebase avoids elsewhere.
+ */
+export interface SectorProductionInput {
+  /** Institutional sector code — S.11, S.13, S.14, or a sub-sector. */
+  code: string;
+  /** P.1 output at basic prices, for producers in this sector. */
+  output: Money;
+  /** P.2 intermediate consumption, for producers in this sector. */
+  intermediateConsumption: Money;
+}
+
 export interface ProductionInput {
   /**
    * Valuation of `industries[].output`. GDP is derived from value added at
@@ -101,6 +120,13 @@ export interface ProductionInput {
   subsidiesOnProducts: Money;
   fisim?: FisimInput;
   imputedRent?: ImputedRentInput;
+  /**
+   * Optional second cut of the same production account, by institutional
+   * sector. Presentational: it never enters GDP, which is why it carries no
+   * taxes or subsidies — those are levied on products and cannot be
+   * attributed to a sector (SNA 2008 §7.88).
+   */
+  institutionalSectors?: SectorProductionInput[];
 }
 
 export interface ExpenditureInput {
@@ -148,6 +174,7 @@ export interface Diagnostic {
     | 'imputed_rent_not_in_expenditure'
     | 'negative_value_added'
     | 'component_missing'
+    | 'sector_value_added_incomplete'
     | 'approaches_diverge';
   severity: 'warning' | 'info';
   message: string;
@@ -165,9 +192,24 @@ export interface IndustryValueAdded {
   grossValueAdded: Money;
 }
 
+/** B.1g for one institutional sector. Never summed into GDP. */
+export interface SectorValueAdded {
+  code: string;
+  output: Money;
+  intermediateConsumption: Money;
+  /** B.1g = P.1 − P.2, for producers in this sector. */
+  grossValueAdded: Money;
+}
+
 export interface ProductionResult {
   /** Per-industry B.1g at basic prices. */
   industries: IndustryValueAdded[];
+  /**
+   * Per-sector B.1g, where the compilation supplied the dimension. Computed
+   * from the rows as supplied, BEFORE the FISIM and imputed-rent adjustments,
+   * which are attributed to industries and have no sector to go to.
+   */
+  bySector?: SectorValueAdded[];
   /** Σ B.1g at basic prices. */
   totalGrossValueAdded: Money;
   taxesOnProducts: Money;

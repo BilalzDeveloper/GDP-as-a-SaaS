@@ -136,6 +136,9 @@ Working rules for sessions on this repo:
   writes it to `result_source` and drill-down reads that record rather than
   re-deriving it (D47). A new measure needs an entry there or it gets no
   drill-down.
+- **Value added has a second cut, by institutional sector** (D49) — value
+  added only, never GDP, computed before the FISIM and imputed-rent
+  adjustments. A result row carries an activity or a sector, never both.
 - **Final consumption is resolved by institutional sector** (D46). A stated
   sector wins; a blank one falls back to the code, and only P.31 and P.32 name
   a sector unambiguously. `S.1` is never read as a component.

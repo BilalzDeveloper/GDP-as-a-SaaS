@@ -157,6 +157,15 @@ Supplying both a sector split and a total-economy figure for the same sector
 is refused outright: one is a double count and the other a residual, and only
 the compiler knows which.
 
+### Production rows can carry a sector too
+
+Where `P.1` and `P.2` rows carry an institutional sector as well as an
+activity, the run compiles a second cut of value added by sector (D49). It is
+value added only — taxes on products are not attributable to a sector — and it
+is computed before the FISIM and imputed-rent adjustments, which have no
+sector to go to. Partial coverage is reported rather than published as though
+it were complete.
+
 ## Supplying FISIM and imputed rent
 
 Two production-side adjustments are supplied as ordinary observations, on

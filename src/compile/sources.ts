@@ -41,6 +41,20 @@ function forIndustry(
   );
 }
 
+/** Rows carrying a value and attributed to one institutional sector. */
+function forSector(
+  rows: readonly ObservationRow[],
+  codes: readonly string[],
+  sectorItemId: string,
+) {
+  return rows.filter(
+    (r) =>
+      codes.includes(r.transactionCode) &&
+      r.sectorItemId === sectorItemId &&
+      r.value !== null,
+  );
+}
+
 /** Every row attributed to some industry, whichever it is. */
 function anyIndustry(rows: readonly ObservationRow[], codes: readonly string[]) {
   return rows.filter(
@@ -60,8 +74,9 @@ const PRODUCTION_TAX_CODES = ['D.2', 'D.3'];
 /**
  * The observations behind one compiled figure.
  *
- * `activityItemId` is set for the per-industry measures and null for the
- * total-economy ones. A measure with no source rows — a derived one such as
+ * `activityItemId` is set for the per-industry measures, `sectorItemId` for
+ * the per-sector cut, and both are null for the total-economy ones. A figure
+ * never carries both: they are two groupings of the same producers. A measure with no source rows — a derived one such as
  * per-capita GDP or a growth rate — returns an empty list rather than a
  * wrong one; those are computed from other results, and the run page says so.
  */
@@ -69,6 +84,7 @@ export function contributingRows(
   rows: readonly ObservationRow[],
   measure: Measure,
   activityItemId: string | null = null,
+  sectorItemId: string | null = null,
 ): ObservationRow[] {
   switch (measure) {
     case MEASURE.output:
@@ -78,6 +94,10 @@ export function contributingRows(
     case MEASURE.grossValueAdded:
       return activityItemId
         ? forIndustry(rows, [...OUTPUT_CODES, ...INTERMEDIATE_CODES], activityItemId)
+        : [];
+    case MEASURE.sectorGrossValueAdded:
+      return sectorItemId
+        ? forSector(rows, [...OUTPUT_CODES, ...INTERMEDIATE_CODES], sectorItemId)
         : [];
     case MEASURE.totalGrossValueAdded:
       return anyIndustry(rows, [...OUTPUT_CODES, ...INTERMEDIATE_CODES]);

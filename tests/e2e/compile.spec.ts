@@ -13,6 +13,7 @@ import {
   adjustmentsCsv,
   annualCsv,
   sectorExpenditureCsv,
+  sectorProductionCsv,
   applyStandardMapping,
   commitInto,
   createOrganization,
@@ -426,7 +427,12 @@ test('a component drills down to source records no code alone would find', async
   // word "Transaction" also catches any diagnostic that happens to use it.
   const sources = page
     .locator('.panel')
-    .filter({ has: page.getByRole('columnheader', { name: 'Sector' }) });
+    .filter({
+      // exact, because a string name is a case-insensitive SUBSTRING match by
+      // default and the sector panel's "Institutional sector" header matches
+      // "Sector" too.
+      has: page.getByRole('columnheader', { name: 'Sector', exact: true }),
+    });
   // All three sectors, on two different codes, in one figure.
   await expect(sources.getByRole('row', { name: /S\.14/ })).toContainText('1,700');
   await expect(sources.getByRole('row', { name: /S\.15/ })).toContainText('60');
@@ -442,4 +448,71 @@ test('a derived figure offers no drill-down rather than an empty one', async () 
   await page.goto(runUrl);
   const perCapita = page.locator('.panel', { hasText: 'Per capita and growth' });
   await expect(perCapita.getByRole('link', { name: 'sources' })).toHaveCount(0);
+});
+
+test('value added is also cut by institutional sector', async () => {
+  // SNA 2008 ch.4: the same producers, grouped by what kind of unit they are
+  // rather than by what they make. General government value added is a table
+  // most offices publish and the industry cut cannot give.
+  await uploadCsv(
+    page,
+    slug,
+    'Production by sector',
+    'production-sectors.csv',
+    sectorProductionCsv(String(YEAR)),
+  );
+  await applyStandardMapping(page, 'NC_MN', true);
+  await commitInto(page, 'production by sector');
+
+  await page.goto(`/orgs/${slug}/runs`);
+  await page.locator('input[name="name"]').fill('Value added by sector');
+  const vintage = page
+    .locator('select[name="vintageId"] option')
+    .filter({ hasText: 'production by sector' })
+    .first();
+  await page
+    .locator('select[name="vintageId"]')
+    .selectOption(await vintage.getAttribute('value'));
+  await page.getByRole('button', { name: 'Create run' }).click();
+  await expect(page.getByRole('heading', { name: 'Value added by sector' })).toBeVisible();
+  const sectorRunUrl = page.url();
+  await page.getByRole('button', { name: 'Execute', exact: true }).click();
+
+  // GDP is unchanged by the second cut — it is a view, not a second total.
+  const gdpRow = page
+    .getByRole('table')
+    .first()
+    .getByRole('row', { name: new RegExp(`^${YEAR}`) });
+  await expect(gdpRow).toContainText('1,600');
+
+  const sectors = page.locator('.panel', { hasText: 'Institutional sector' });
+  // S.11 non-financial corporations: (2000−1200) + (700−450) = 1050.
+  await expect(sectors.getByRole('row', { name: /S\.11/ })).toContainText('1,050');
+  // S.13 general government: 500 − 200 = 300. The industry cut cannot say this.
+  await expect(sectors.getByRole('row', { name: /S\.13/ })).toContainText('300');
+
+  // The two cuts agree, so no coverage warning.
+  await expect(page.getByText(/covers only part of the economy/)).toHaveCount(0);
+
+  // And a sector figure traces back to its own rows, not the industry's.
+  await sectors
+    .getByRole('row', { name: /S\.13/ })
+    .getByRole('link', { name: 'sources' })
+    .click();
+  await expect(
+    page.getByRole('heading', { name: /Source records — Value added by sector/ }),
+  ).toBeVisible();
+  const sources = page
+    .locator('.panel')
+    .filter({
+      // exact, because a string name is a case-insensitive SUBSTRING match by
+      // default and the sector panel's "Institutional sector" header matches
+      // "Sector" too.
+      has: page.getByRole('columnheader', { name: 'Sector', exact: true }),
+    });
+  await expect(sources.getByRole('row', { name: /P\.1/ })).toContainText('500');
+  await expect(sources.getByRole('row', { name: /P\.2/ })).toContainText('200');
+  // Only the government rows: the corporate producers belong to another cell.
+  await expect(sources.getByRole('row', { name: /S\.11/ })).toHaveCount(0);
+  await page.goto(sectorRunUrl);
 });

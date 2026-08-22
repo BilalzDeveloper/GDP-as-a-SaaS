@@ -849,3 +849,38 @@ test fails, the guide needed updating in the same change — which is the point.
 the missing sector accounts are in the guide, in the same words as everywhere
 else. An NSO deciding what to rely on should not have to read the repository
 to find out what has not been verified.
+
+## D49 — Value added is cut by institutional sector, and it is not GDP
+**Decision:** where `P.1` and `P.2` rows carry an institutional sector, the
+run compiles a second cut of value added by sector alongside the industry one,
+stored on `compilation_result.sector_item_id` (migration 0012) and shown with
+its own drill-down.
+**Why:** SNA 2008 ch.4 — every producer belongs both to an industry and to an
+institutional sector, so the production account can be summed either way from
+the same records, and ch.14's supply and use tables present both. General
+government value added is a table most offices publish and the industry cut
+cannot give.
+**It is value added, never GDP.** Taxes and subsidies on products are levied
+on products rather than on producers and are not attributable to a sector
+(§7.88), so there is no sector figure to add them to. The engine computes no
+sector GDP and the schema stores none.
+**It is computed before the adjustments.** FISIM is attributed to the
+industries consuming it and imputed rent to the housing industry; neither
+carries a sector, and the compilation supplies none to attribute them to.
+Rather than guess, the sector cut is the unadjusted account — and the coverage
+check therefore compares it against the industries *as supplied* rather than
+as adjusted, so that a compilation with FISIM does not acquire a phantom
+coverage gap.
+**Partial coverage is published with its own warning, not withheld.** A sector
+breakdown covering only some producers is useful once labelled; published as
+complete it would understate whichever sectors the uncovered producers belong
+to, and nothing on the face of the table would show it. The diagnostic states
+both totals and the difference.
+**Sub-sectors are not rolled up here**, unlike final consumption (D46). There,
+a component must land on exactly one of three sectors. This is a
+presentational breakdown, and an office filing S.1311 and S.1313 separately
+wants to see them separately; the coverage check works on the total either way.
+**Both exports gained a sector column** rather than folding it into the
+activity one. An industry and a sector are two groupings of the same
+producers: a consumer reading `S.13` as an activity code would be reading it
+wrong, and one summing the two cuts together would double-count.

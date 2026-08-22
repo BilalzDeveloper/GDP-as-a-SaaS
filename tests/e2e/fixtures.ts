@@ -240,3 +240,30 @@ export function sectorExpenditureCsv(periodLabel: string): string {
     `P.7,,,${periodLabel},710`,
   ].join('\n');
 }
+
+/**
+ * A production account whose producers carry an institutional sector as well
+ * as an industry — the two groupings of the same records (SNA 2008 ch.4).
+ *
+ *   By industry: (2000−1200) + (700−450) + (500−200) = 1350
+ *   By sector:   S.11 (2700−1650) + S.13 (500−200)   = 1350
+ *   GDP = 1350 + 320 − 70 = 1600
+ *
+ * The two cuts agree, so the coverage check stays silent and any warning in
+ * the interface is a real defect. Government is the one non-corporate
+ * producer, which is what makes the sector cut say something the industry cut
+ * does not.
+ */
+export function sectorProductionCsv(periodLabel: string): string {
+  return [
+    'txn,isic,sector,period,value',
+    `P.1,C,S.11,${periodLabel},2000`,
+    `P.2,C,S.11,${periodLabel},1200`,
+    `P.1,F,S.11,${periodLabel},700`,
+    `P.2,F,S.11,${periodLabel},450`,
+    `P.1,A,S.13,${periodLabel},500`,
+    `P.2,A,S.13,${periodLabel},200`,
+    `D.21,,,${periodLabel},320`,
+    `D.31,,,${periodLabel},70`,
+  ].join('\n');
+}

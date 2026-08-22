@@ -116,6 +116,14 @@ allocated to that industry; the engine applies the allocation from the
 compilation must be in the same unit — see the `unit` registry, where the
 multiplier is explicit for this reason.
 
+**Value added by institutional sector.** Supply `institutionalSectors` and
+`computeProductionApproach` returns `bySector` alongside `industries` — the
+same producers grouped by what kind of unit they are (SNA 2008 ch.4). It never
+enters GDP: taxes on products are not attributable to a sector (§7.88). It is
+computed from the inputs as supplied, before the FISIM and imputed-rent
+adjustments, and the coverage check compares it against the industries as
+supplied for the same reason. See D49.
+
 ## Methodological variants
 
 | Choice | Default | Alternative |
@@ -141,6 +149,7 @@ not block a whole compilation:
 | `fisim_allocation_mismatch` | FISIM allocations do not sum to FISIM output |
 | `imputed_rent_not_in_expenditure` | Imputed rent is in production but household consumption excludes it, or the caller has not confirmed either way |
 | `negative_value_added` | An industry's B.1g is negative — occasionally genuine, usually a sign or mapping error |
+| `sector_value_added_incomplete` | The sector cut covers only part of the economy — some producers carry no sector |
 | `component_missing` | FISIM allocated to an unknown industry, or a pre-negated import/subsidy figure |
 | `approaches_diverge` | A discrepancy exceeds the configured threshold |
 

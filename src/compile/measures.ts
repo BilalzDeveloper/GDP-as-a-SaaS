@@ -10,6 +10,12 @@ export const MEASURE = {
   totalGrossValueAdded: 'total_gross_value_added',
   /** B.1g for one industry — the row carries activity_item_id. */
   grossValueAdded: 'gross_value_added',
+  /**
+   * B.1g for one institutional sector — the row carries sector_item_id.
+   * Value added only: taxes on products are not attributable to a sector
+   * (SNA 2008 §7.88), so there is no sector GDP (D49).
+   */
+  sectorGrossValueAdded: 'sector_gross_value_added',
   /** P.1 for one industry, as used after FISIM and imputed rent. */
   output: 'output',
   /** P.2 for one industry, as used. */
